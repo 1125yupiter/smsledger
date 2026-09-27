@@ -12,17 +12,26 @@ Built and verified against **6,249 real notices**.
 
 ## Getting started
 
+Open Terminal (⌘Space, type `terminal`) and paste these two lines, one at a time:
+
 ```bash
-pip3 install smsledger
-smsledger-setup
+pip3 install "git+https://github.com/1125yupiter/smsledger"
+python3 -m smsledger setup
 ```
 
-`smsledger-setup` asks a few plain questions, writes the configuration for you,
-reads your messages, builds the report and offers to keep it up to date. After
-that, **using this is opening one bookmarked file.** You do not have to touch a
-config file or run anything again.
+`setup` asks a few plain questions, writes the configuration for you, reads your
+messages, builds the report and offers to keep it up to date. After that, **using
+this is opening one bookmarked file.** You do not have to touch a config file or
+run anything again.
 
-It works with the Python that ships with macOS — there is nothing else to install.
+It works with the Python that ships with macOS, so there is nothing else to install.
+The very first `python3` on a new Mac asks to install Apple's command line tools —
+say yes, wait for it, then run the lines again.
+
+Every command is also `python3 -m smsledger <command>`; `python3 -m smsledger` on its
+own lists them. There are `smsledger-setup`-style shortcuts too, but whether your
+shell can find them depends on where `pip3` put them, so the lines above are the ones
+that always work.
 
 ### Language
 
@@ -30,7 +39,7 @@ It follows your Mac's language automatically — Korean and English ship today.
 To pin it:
 
 ```bash
-SMSLEDGER_LANG=en smsledger-setup      # or set "language" in config/profile.json
+SMSLEDGER_LANG=en python3 -m smsledger setup   # or set "language" in config/profile.json
 ```
 
 Code and documentation are English so anyone can contribute; **what you read on
@@ -45,17 +54,17 @@ screen is not**. Adding a language is one JSON file — see CONTRIBUTING.md.
   you. Setup tells you exactly what to do if it is missing, and it stops loudly rather
   than quietly reading nothing.
 
-Not sure any of this applies to you? `smsledger-doctor` answers it in about thirty
-seconds without changing anything.
+Not sure any of this applies to you? `python3 -m smsledger doctor` answers it in about
+thirty seconds without changing anything.
 
 ### Keeping it current
 
-`smsledger-setup` offers this at the end; you can also do it later:
+`setup` offers this at the end; you can also do it later:
 
 ```bash
-smsledger-agent install     # refresh a few times a day, in the background
-smsledger-agent status      # is it running, and did the last run work
-smsledger-agent remove      # stop it
+python3 -m smsledger agent install    # refresh a few times a day, in the background
+python3 -m smsledger agent status     # is it running, and did the last run work
+python3 -m smsledger agent remove     # stop it
 ```
 
 macOS grants file permission per program, and a background task counts as a different
@@ -66,13 +75,13 @@ kind of broken.
 ### If you would rather not have a background task
 
 ```bash
-smsledger-refresh           # collect, parse and rebuild the report, once
+python3 -m smsledger refresh          # collect, parse and rebuild the report, once
 ```
 
 ## If something goes wrong
 
 ```bash
-smsledger-support
+python3 -m smsledger support
 ```
 
 Writes one plain-text file with what is needed to diagnose it, then offers to open a
@@ -90,12 +99,13 @@ readable.
 That split is enforced by a test, not by a promise on a page.
 
 Failures are appended to `errors.log` in your data folder as they happen, so a problem
-you hit last Tuesday is still answerable today — and `smsledger-support` picks them up,
+you hit last Tuesday is still answerable today — and `support` picks them up,
 so **one file is all you need to send.**
 
 Prefer GitHub? Open an issue instead and attach the same file.
 
-To update after a fix ships: `pip3 install -U smsledger`.
+To update after a fix ships:
+`pip3 install -U --force-reinstall "git+https://github.com/1125yupiter/smsledger"`.
 
 ## What it handles
 
@@ -141,10 +151,10 @@ not hand your bank credentials to an aggregator to get your own transactions bac
 Every step is a command of its own, and the parsers are importable on their own:
 
 ```bash
-smsledger-collect           # messages + mail -> notifications.jsonl   (--rescan to sweep all)
-smsledger-parse             # -> parsed.jsonl
-smsledger-summary           # a summary in the terminal                (--redact to share)
-smsledger-report            # the HTML page                            (--redact to share)
+python3 -m smsledger collect   # messages + mail -> notifications.jsonl  (--rescan to sweep all)
+python3 -m smsledger parse     # -> parsed.jsonl
+python3 -m smsledger summary   # a summary in the terminal               (--redact to share)
+python3 -m smsledger report    # the HTML page                          (--redact to share)
 ```
 
 ```python
@@ -168,7 +178,7 @@ parse_row({"kind": "hyundai_card", "ts": "2026-09-20 13:05:11",
 **Full account numbers are never accepted.** Notices only carry the tail, so the tail is
 enough — and not accepting something is the surest way not to leak it.
 
-`smsledger-setup` writes these for you. Lookup order is
+`setup` writes these for you. Lookup order is
 `$SMSLEDGER_HOME/config/*.json` → the shipped `*.example.json` → code defaults, and the
 parsers run with no config at all.
 

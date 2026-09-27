@@ -157,10 +157,10 @@ Detection order: `SMSLEDGER_LANG` → `language` in `config/profile.json` → th
 
 ## Reporting a problem
 
-`smsledger-support` writes everything needed — including any errors already recorded —
+`python3 -m smsledger support` writes everything needed — including any errors already recorded —
 so one file is all that needs sending.
 
-- **Not on GitHub?** Email it to [1125.yupiter@gmail.com](mailto:1125.yupiter@gmail.com). `smsledger-support` will open a draft
+- **Not on GitHub?** Email it to [1125.yupiter@gmail.com](mailto:1125.yupiter@gmail.com). `python3 -m smsledger support` will open a draft
   and reveal the file for you.
 - **On GitHub?** Open an issue and attach the same file.
 

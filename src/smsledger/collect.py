@@ -422,7 +422,7 @@ def _guarded(fn, name):
             except BaseException:
                 # The error path must never raise an error of its own.
                 print(f"recorded in {ERRORS}", file=_sys.stderr)
-                print(f"smsledger-support -> {SUPPORT_EMAIL}", file=_sys.stderr)
+                print(f"python3 -m smsledger support -> {SUPPORT_EMAIL}", file=_sys.stderr)
             raise SystemExit(1)
     return wrapper
 

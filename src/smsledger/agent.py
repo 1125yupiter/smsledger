@@ -102,7 +102,7 @@ def _verify_first_run(timeout: int = 40) -> bool:
             print("  " + _("agent.verify.ok"))
             return True
     print("  " + _("agent.verify.timeout", seconds=timeout))
-    print("    smsledger-agent status")
+    print("    python3 -m smsledger agent status")
     return True
 
 
@@ -135,7 +135,11 @@ def status() -> int:
     print(_("agent.log", path=LOG))
     for line in text.strip().splitlines()[-5:]:
         print(f"  {line}")
-    if DENIED in text.splitlines()[-40:] and DENIED in text:
+    # Membership against whole lines never matches a substring, so this used to be
+    # dead: the hint that tells someone how to unblock the agent never printed.
+    # Only the recent tail counts -- a denial from months ago that was since fixed
+    # should not keep telling them to go and fix it.
+    if any(DENIED in line for line in text.splitlines()[-40:]):
         print()
         print("  " + _("agent.blocked.short"))
         print("  " + _("agent.verify.blocked.how1"))
@@ -189,7 +193,7 @@ def _guarded(fn, name):
             except BaseException:
                 # The error path must never raise an error of its own.
                 print(f"recorded in {ERRORS}", file=_sys.stderr)
-                print(f"smsledger-support -> {SUPPORT_EMAIL}", file=_sys.stderr)
+                print(f"python3 -m smsledger support -> {SUPPORT_EMAIL}", file=_sys.stderr)
             raise SystemExit(1)
     return wrapper
 

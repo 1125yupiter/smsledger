@@ -167,7 +167,7 @@ def check_gaps(cfg: dict, days: int) -> None:
     cursor_path = STREAM / "cursor.json"
     out = STREAM / "notifications.jsonl"
     if not cursor_path.exists() or not out.exists():
-        _line(WARN, "nothing collected yet -- run smsledger-collect")
+        _line(WARN, "nothing collected yet -- run python3 -m smsledger collect")
         return
     cur = json.loads(cursor_path.read_text(encoding="utf-8"))
     since = cur.get("sms") or ""
@@ -203,7 +203,7 @@ def check_gaps(cfg: dict, days: int) -> None:
         _line(WARN, f"{behind - len(collected)} message(s) sit before the cursor but were "
                     f"never collected. Phones sync old messages late, and the cursor only "
                     f"moves forward.")
-        _line("", "  fix: smsledger-collect --rescan")
+        _line("", "  fix: python3 -m smsledger collect --rescan")
     else:
         _line(OK, "no messages stranded behind the cursor")
 
@@ -296,7 +296,7 @@ def _guarded(fn, name):
             except BaseException:
                 # The error path must never raise an error of its own.
                 print(f"recorded in {ERRORS}", file=_sys.stderr)
-                print(f"smsledger-support -> {SUPPORT_EMAIL}", file=_sys.stderr)
+                print(f"python3 -m smsledger support -> {SUPPORT_EMAIL}", file=_sys.stderr)
             raise SystemExit(1)
     return wrapper
 

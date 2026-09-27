@@ -39,7 +39,7 @@ STALE_DAYS = 90
 def load(path: Path | None = None) -> list[dict]:
     p = path or PARSED
     if not p.exists():
-        raise SystemExit(f"nothing parsed yet: {p}\nRun smsledger-collect then smsledger-parse.")
+        raise SystemExit(f"nothing parsed yet: {p}\nRun python3 -m smsledger refresh first.")
     return [json.loads(l) for l in p.read_text(encoding="utf-8").splitlines() if l.strip()]
 
 
@@ -242,7 +242,7 @@ def _guarded(fn, name):
             except BaseException:
                 # The error path must never raise an error of its own.
                 print(f"recorded in {ERRORS}", file=_sys.stderr)
-                print(f"smsledger-support -> {SUPPORT_EMAIL}", file=_sys.stderr)
+                print(f"python3 -m smsledger support -> {SUPPORT_EMAIL}", file=_sys.stderr)
             raise SystemExit(1)
     return wrapper
 
