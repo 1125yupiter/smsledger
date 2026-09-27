@@ -1,0 +1,17 @@
+{
+  "kind": "hyundai_card",
+  "ts": "2026-09-20 13:05:11",
+  "note": "Single-payment approval. The merchant is the line after the date line.",
+  "expect": {
+    "kind": "card_approve",
+    "amount": 12300,
+    "installment": "일시불",
+    "cumulative": null,
+    "mmdd": "09/20",
+    "hhmm": "13:05",
+    "merchant": "테스트커피로스터스",
+    "date": "2026-09-20",
+    "desc": "테스트커피로스터스",
+    "source": "hyundai_card"
+  }
+}

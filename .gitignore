@@ -1,0 +1,17 @@
+# Financial data never enters the repository. Once committed it cannot be removed.
+.smsledger/
+config/*.json
+!config/*.example.json
+*.jsonl
+*.csv
+*.xls
+*.xlsx
+
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+build/
+dist/
+*.egg-info/
+.DS_Store

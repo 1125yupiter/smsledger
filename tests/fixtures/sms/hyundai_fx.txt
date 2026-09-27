@@ -1,0 +1,6 @@
+[Web발신]
+현대카드 해외승인
+홍*동
+USD 42.50
+07/14 03:22
+TEST-SUBSCRIPTION

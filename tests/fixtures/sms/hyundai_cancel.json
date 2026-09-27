@@ -1,0 +1,14 @@
+{
+  "kind": "hyundai_card",
+  "ts": "2026-09-19 10:00:00",
+  "note": "A cancellation arrives on one line. Read as an approval, spending is counted twice.",
+  "expect": {
+    "kind": "card_cancel",
+    "amount": 3500,
+    "mmdd": "09/18",
+    "merchant": "테스트편의점",
+    "date": "2026-09-18",
+    "desc": "테스트편의점",
+    "source": "hyundai_card"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "_note": "Sender -> parser kind. These numbers are the issuers' public contact numbers. To add your bank, add one line here; `kind` must match a parser registered under locales/.",
+  "sms": [
+    { "id": "hyundai_6200", "sender": "+8215776200", "kind": "hyundai_card", "note": "KR Hyundai Card usage alerts" },
+    { "id": "hyundai_rcs", "sender": "15776200@botplatform.maapservice.com", "kind": "hyundai_card", "note": "Same sender over RCS; matched by number tail" },
+    { "id": "hyundai_6000", "sender": "+8215776000", "kind": "hyundai_card", "note": "KR Hyundai Card service line" },
+    { "id": "kb_9999", "sender": "+8216449999", "kind": "kb_alert", "note": "KR KB Bank account alerts" },
+    { "id": "hana_1111", "sender": "+8215991111", "kind": "hana_alert", "note": "KR Hana Bank account alerts" },
+    { "id": "kb_corp_1688", "sender": "+8215881688", "kind": "corp_card", "note": "KR KB corporate card. Not personal spending, hence its own kind" }
+  ],
+  "mail": [
+    { "id": "hana_mail", "address": "hanamail@hanafn.com", "kind": "hana_alert", "note": "Arrives by mail when SMS does not" },
+    { "id": "kb_mail", "address": "kbmail@kbmail.kbstar.com", "kind": "kb_alert" },
+    { "id": "hyundai_admin", "address": "admin@hyundaicard.com", "kind": "hyundai_stmt", "note": "Monthly statement. No parser yet, so skipped" },
+    { "id": "hyundai_web", "address": "webmaster@hyundaicard.com", "kind": "hyundai_stmt" }
+  ]
+}

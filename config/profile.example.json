@@ -1,0 +1,19 @@
+{
+  "_note": "Your accounts and cards. Notices only carry the tail, so full account numbers are never accepted. Copy this to $SMSLEDGER_HOME/config/profile.json and fill in your values.",
+  "accounts": [
+    { "id": "bank_a_fixed", "alias": "Fixed costs", "tail": "00000", "role": "fixed" },
+    { "id": "bank_a_spend", "alias": "Everyday", "tail": "00000", "role": "spend" },
+    { "id": "bank_a_card", "alias": "Card settlement", "tail": "00000", "role": "card_settle" },
+    { "id": "card_x", "alias": "Main credit card", "tail": "0000", "role": "card" }
+  ],
+  "loans": [
+    { "id": "loan_a", "alias": "Personal loan", "tail": "0000", "rate": 5.0, "repayment": "interest_only" }
+  ],
+  "self_patterns": ["YOUR NAME", "YOUR BUSINESS NAME"],
+  "spend_tiers": [500000, 1000000, 2000000],
+  "fx": {
+    "_note": "Foreign-currency approvals carry no local amount. This is the estimate rate used until the statement arrives. Fee is card-network ~1% plus issuer ~0.2%.",
+    "rates": { "USD": 1410.0 },
+    "fee_rate": 1.012
+  }
+}

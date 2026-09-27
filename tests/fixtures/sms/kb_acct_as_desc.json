@@ -1,0 +1,18 @@
+{
+  "kind": "kb_alert",
+  "ts": "2026-09-24 09:30:00",
+  "note": "KB sometimes prints the counterparty account number where a description goes. Drop every numeric line and loan interest becomes a row with no description, later misfiled as a fee. Ten-plus digits without a comma is an account number.",
+  "expect": {
+    "kind": "bank_tx",
+    "acct_tail": "789",
+    "dir": "",
+    "amount": 2853180,
+    "counterparty": "1234567890123",
+    "desc": "1234567890123",
+    "balance": 1000000,
+    "mmdd": "09/24",
+    "hhmm": "09:30",
+    "date": "2026-09-24",
+    "source": "kb_alert"
+  }
+}

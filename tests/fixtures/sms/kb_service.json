@@ -1,0 +1,8 @@
+{
+  "kind": "kb_alert",
+  "ts": "2026-09-01 09:00:00",
+  "note": "A service notice is not a transaction.",
+  "expect": {
+    "skip": "service"
+  }
+}

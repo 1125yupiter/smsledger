@@ -1,0 +1,112 @@
+# Adding your bank or your country
+
+One file, one config line, one fixture pair. No existing code is modified.
+
+## 1. Pick or create a locale
+
+Locales live in `src/smsledger/locales/<cc>/` using the ISO 3166-1 alpha-2 code
+(`kr`, `in`, `id`, `br`, `ng`, …). A new locale is a directory with an `__init__.py`
+and a `patterns.py`; nothing else needs wiring, because the registry walks the
+directory.
+
+Country-specific wording belongs in `patterns.py` — never in `util.py`:
+
+```python
+# locales/in/patterns.py
+import re
+
+AMT = re.compile(r"(?:INR|Rs\.?)\s*([0-9,]+(?:\.[0-9]{2})?)")
+BAL = re.compile(r"(?:Avl Bal|Available Balance)[:\s]*(?:INR|Rs\.?)?\s*([0-9,]+)")
+
+def plain(text: str) -> str:
+    return (text or "").strip()
+
+_plain = plain
+```
+
+Note grouping differs by locale — India writes `1,23,456`. Stripping commas handles both,
+but do not assume a three-digit grouping anywhere.
+
+## 2. The parser — `locales/<cc>/<bank>.py`
+
+```python
+from ...registry import register
+from ...util import MMDD_HM, _won, year_for
+from .patterns import AMT, BAL, _plain
+
+
+@register("hdfc_alert")          # must match the `kind` in config
+def parse_hdfc(text: str, ts: str) -> dict | None:
+    lines = [ln.strip() for ln in _plain(text).splitlines() if ln.strip()]
+    ...
+    return {
+        "kind": "bank_tx",       # card_approve | card_cancel | bank_tx
+        "amount": amount,
+        "date": f"{year_for(ts, mo, da):04d}-{mo:02d}-{da:02d}",
+        "desc": counterparty,
+        "source": "hdfc_alert",
+    }
+```
+
+### Contract
+
+- Signature is `(text, ts) -> dict | None`.
+- **Return `None` if the message is not yours; return `{"skip": "<reason>"}` if it is yours
+  but is not a transaction.** Keep these apart. The first means the sender config is wrong,
+  the second is normal. Conflate them and you can never find what went missing.
+- **Return `None` when the amount cannot be read. Never `0`, never a guess.**
+- Anything that must not count as personal spending gets a `kind` prefix (see `corp_card`).
+- Dates without a year must go through `year_for(ts, month, day)`. Reaching for
+  `datetime.now().year` fails silently every January.
+
+## 3. A fixture pair — `tests/fixtures/sms/`
+
+`<name>.txt` holds the message body, `<name>.json` the expectation. **You do not write test
+code.**
+
+```json
+{ "kind": "hdfc_alert", "ts": "2026-09-22 08:15:40",
+  "note": "one line on why this case has to exist",
+  "expect": { "kind": "bank_tx", "amount": 120500, "...": "the parser's full dict" } }
+```
+
+`expect` must equal the output exactly. Do not pass by asserting on a subset of keys.
+
+### ★ Fabricate every value
+
+**Do not put real amounts, merchants, account tails or names in a fixture.** Once committed it
+cannot be removed from history, and at that moment this repository is holding someone's
+financial records.
+
+Change: amount → anything · merchant → `SOME STORE` · account tail → `12345` · name → `J** D**`.
+
+**Do not change the shape by even one character** — line endings (`\r\n` vs `\n`), spacing,
+full-width parentheses, carrier prefixes are all things the parser sees. "Tidying" them makes
+the test stop representing a real message.
+
+Minimum set: a normal transaction · a cancellation or an inbound one · a non-transaction notice
+(`skip`).
+
+## 4. One config line — `config/sources.example.json`
+
+```json
+{ "id": "hdfc_sms", "sender": "+911234567890", "kind": "hdfc_alert", "note": "HDFC alerts" }
+```
+
+Sender numbers are public information. **Do not put your own account tail or limits in `note`.**
+
+## 5. Check
+
+```bash
+pytest
+```
+
+`test_every_registered_kind_has_a_fixture` blocks a parser that ships without one.
+
+## Not accepted
+
+- Code that fetches data by logging in, scraping, or calling an open-banking API. Not doing
+  that is the reason this tool can stand without a server.
+- Code that sends anything outward — analytics, remote logging, telemetry. Having no network
+  calls is this repository's promise.
+- Fixtures, logs or screenshots containing real transaction data.

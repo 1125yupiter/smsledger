@@ -1,0 +1,17 @@
+{
+  "kind": "hyundai_card",
+  "ts": "2027-01-03 09:12:00",
+  "note": "The text has no year. A 12/28 received in January is last year. The only clue is that a notice cannot describe the future.",
+  "expect": {
+    "kind": "card_approve",
+    "amount": 7700,
+    "installment": "일시불",
+    "cumulative": null,
+    "mmdd": "12/28",
+    "hhmm": "21:40",
+    "merchant": "테스트서점",
+    "date": "2026-12-28",
+    "desc": "테스트서점",
+    "source": "hyundai_card"
+  }
+}

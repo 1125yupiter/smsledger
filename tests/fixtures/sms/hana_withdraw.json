@@ -1,0 +1,17 @@
+{
+  "kind": "hana_alert",
+  "ts": "2026-09-22 08:15:40",
+  "note": "The masked account yields a five-digit tail, which is what tells the accounts apart.",
+  "expect": {
+    "kind": "bank_tx",
+    "acct_tail": "45678",
+    "dir": "출금",
+    "amount": 120500,
+    "desc": "테스트페이머니",
+    "balance": 12345678,
+    "mmdd": "09/22",
+    "hhmm": "08:15",
+    "date": "2026-09-22",
+    "source": "hana_alert"
+  }
+}

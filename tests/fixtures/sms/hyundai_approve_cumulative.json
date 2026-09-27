@@ -1,0 +1,17 @@
+{
+  "kind": "hyundai_card",
+  "ts": "2026-09-21 19:40:02",
+  "note": "The trailing running-total line, added 2026-09-14. Neither charge nor merchant; reading it as the merchant pollutes the ledger.",
+  "expect": {
+    "kind": "card_approve",
+    "amount": 45000,
+    "installment": "일시불",
+    "cumulative": 1234567,
+    "mmdd": "09/21",
+    "hhmm": "19:40",
+    "merchant": "테스트식당",
+    "date": "2026-09-21",
+    "desc": "테스트식당",
+    "source": "hyundai_card"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "kind": "corp_card",
+  "ts": "2026-09-25 12:30:05",
+  "note": "A corporate card is not personal spending, so the kind is prefixed and a ledger built from these rows skips it. The remaining-limit figure lets two consecutive notices verify nothing was missed.",
+  "expect": {
+    "kind": "corp_card_approve",
+    "amount": 8500,
+    "card_tail": "1234",
+    "merchant": "테스트카페",
+    "remaining": 654300,
+    "mmdd": "09/25",
+    "hhmm": "12:30",
+    "date": "2026-09-25",
+    "desc": "테스트카페",
+    "source": "kb_corp_card"
+  }
+}

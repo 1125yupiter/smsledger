@@ -1,0 +1,20 @@
+{
+  "kind": "hyundai_card",
+  "ts": "2026-07-14 03:22:15",
+  "note": "A foreign approval carries no local amount. Search only for the local currency and overseas subscriptions vanish entirely. The local amount is estimated and flagged.",
+  "expect": {
+    "kind": "card_approve",
+    "amount": 60644,
+    "estimated": true,
+    "currency": "USD",
+    "fx_amount": 42.5,
+    "fx_rate_used": 1410.0,
+    "installment": "",
+    "mmdd": "07/14",
+    "hhmm": "03:22",
+    "merchant": "TEST-SUBSCRIPTION",
+    "date": "2026-07-14",
+    "desc": "TEST-SUBSCRIPTION (USD 42.50)",
+    "source": "hyundai_card"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "kind": "kb_alert",
+  "ts": "2026-09-23 14:02:10",
+  "note": "KB omits the currency word. The amount line is the one just before the balance line, so position decides -- account numbers are long digit runs too.",
+  "expect": {
+    "kind": "bank_tx",
+    "acct_tail": "789",
+    "dir": "출금",
+    "amount": 1500000,
+    "counterparty": "테스트상사",
+    "desc": "테스트상사",
+    "balance": 2345678,
+    "mmdd": "09/23",
+    "hhmm": "14:02",
+    "date": "2026-09-23",
+    "source": "kb_alert"
+  }
+}

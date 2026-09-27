@@ -1,0 +1,8 @@
+{
+  "kind": "hyundai_card",
+  "ts": "2026-09-20 13:06:00",
+  "note": "Points are not a cash outflow. This is skip (mine, not a transaction), not None (not mine).",
+  "expect": {
+    "skip": "mpoint"
+  }
+}
