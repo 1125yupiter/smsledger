@@ -83,7 +83,7 @@ def test_mask_digits_never_prints_a_full_account_number() -> None:
 
     out = mask_digits("98765432109876")
     assert "98765432109876" not in out
-    assert out.endswith("1105")
+    assert out.endswith("9876")
     # short numbers are amounts or dates, leave them alone
     assert mask_digits("09/20 13:05") == "09/20 13:05"
 
