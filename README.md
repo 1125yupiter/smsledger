@@ -190,6 +190,10 @@ enough — and not accepting something is the surest way not to leak it.
 `$SMSLEDGER_HOME/config/*.json` → the shipped `*.example.json` → code defaults, and the
 parsers run with no config at all.
 
+Everything lives in **`~/smsledger`** unless `SMSLEDGER_HOME` says otherwise: one ledger,
+in one place, whatever directory you run a command from. Keep it outside a git checkout —
+financial data committed by accident cannot be removed from history.
+
 ## What it does not do
 
 - **No categorisation, budgeting or reporting.** This ends at turning a message into a row.

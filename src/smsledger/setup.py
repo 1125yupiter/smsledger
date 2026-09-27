@@ -15,13 +15,11 @@ import json
 import os
 import shutil
 import subprocess
-import sys
 from pathlib import Path
 
 from .i18n import t as _
 from .paths import EXAMPLES
-
-DEFAULT_HOME = Path.home() / "smsledger"
+from .paths import HOME as WORKING_HOME
 
 
 def ask(question: str, default: str = "y") -> bool:
@@ -63,13 +61,26 @@ def check_access() -> bool:
 
 
 def pick_home() -> Path:
-    env = os.environ.get("SMSLEDGER_HOME")
-    if env:
-        print("  " + _("home.env", path=env))
-        return Path(env).expanduser()
-    print("  " + _("home.default", path=DEFAULT_HOME))
-    print("  " + _("home.local"))
-    return DEFAULT_HOME
+    """Report where data lives. It does *not* decide -- ``paths`` already did.
+
+    This used to choose a directory of its own and then set ``SMSLEDGER_HOME`` in
+    the environment mid-run, expecting the already-imported modules to notice.
+    They did not: ``collect`` had been imported by step 1, its output path was
+    frozen, and deleting the package from ``sys.modules`` does not help because
+    ``from . import collect`` finds the stale module still attached to the parent
+    package. So the first run collected into one directory and built its report
+    from another, and said "read 5 notices, found 0 transactions" on the one
+    screen a new reader ever sees.
+
+    A process decides where home is once, at import, from the environment. Nothing
+    here may move it afterwards.
+    """
+    if os.environ.get("SMSLEDGER_HOME"):
+        print("  " + _("home.env", path=WORKING_HOME))
+    else:
+        print("  " + _("home.default", path=WORKING_HOME))
+        print("  " + _("home.local"))
+    return WORKING_HOME
 
 
 def write_config(home: Path) -> int:
@@ -92,7 +103,6 @@ def write_config(home: Path) -> int:
 
 def report_unknown(home: Path) -> None:
     """Tell them plainly if a bank of theirs has no parser yet."""
-    os.environ["SMSLEDGER_HOME"] = str(home)
     from . import doctor
 
     cfg = json.loads((home / "config" / "sources.json").read_text(encoding="utf-8"))
@@ -135,7 +145,6 @@ def _main() -> None:
 
     step(2, _("setup.step.home"))
     home = pick_home()
-    os.environ["SMSLEDGER_HOME"] = str(home)
     home.mkdir(parents=True, exist_ok=True)
 
     step(3, _("setup.step.config"))
@@ -151,10 +160,7 @@ def _main() -> None:
         print("\n" + _("read.stopped"))
         raise SystemExit(0)
 
-    # Import after SMSLEDGER_HOME is set: paths are resolved at import time.
-    for mod in [m for m in list(sys.modules) if m.startswith("smsledger.")]:
-        del sys.modules[mod]
-    from smsledger.refresh import run as refresh
+    from .refresh import run as refresh
 
     print("  " + _("read.working"))
     result = refresh(days=180, quiet=True)
@@ -177,7 +183,7 @@ def _main() -> None:
         print("  " + _(k))
     print()
     if ask(_("schedule.ask")):
-        from smsledger.agent import install
+        from .agent import install
 
         if install(hours=6, days=180) == 2:
             print("\n  " + _("schedule.blocked.later"))
