@@ -188,3 +188,105 @@ def test_support_report_hides_the_username(tmp_path, monkeypatch) -> None:
 
     assert str(Path.home()) not in tilde(str(Path.home() / "smsledger" / "x.json"))
     assert tilde(str(Path.home() / "a")).startswith("~")
+
+
+def test_columns_are_measured_in_terminal_cells_not_characters() -> None:
+    """A Korean label is fewer characters and more columns than its English twin."""
+    from smsledger.i18n import cells, pad
+
+    assert cells("card approvals") == 14
+    assert cells("카드 승인") == 9          # four wide glyphs plus the space
+    assert len("카드 승인") == 5            # which is why str.ljust cannot be used
+    # Both labels must leave the amount starting in the same column.
+    assert cells(pad("card approvals", 22)) == 22
+    assert cells(pad("카드 승인", 22)) == 22
+    assert pad("over the stated width", 3) == "over the stated width"
+
+
+def test_wrapped_prose_stays_inside_the_terminal_in_either_language() -> None:
+    from smsledger.i18n import cells, wrap
+
+    korean = "커서보다 오래된 문자가 남아 있어요. " * 4
+    for line in wrap(korean, 60, first="  ! ", rest="    "):
+        assert cells(line) <= 60, line
+    english = "Phones sync old messages late and the cursor only moves forward. " * 2
+    for line in wrap(english, 60, first="  ! ", rest="    "):
+        assert cells(line) <= 60, line
+    # A single word longer than the width is emitted rather than lost.
+    assert wrap("x" * 80, 10) == ["x" * 80]
+
+
+def test_every_message_key_used_in_code_exists_in_the_catalogue() -> None:
+    """A typo in a key is invisible at runtime: ``t`` falls back to the key itself.
+
+    Keys assembled at runtime (``"cli." + name`` in ``__main__``) cannot be found
+    this way, which is exactly why a grep for quoted keys once reported nine of
+    them as dead. Only literals are checked here.
+    """
+    import json
+    import re
+    from pathlib import Path
+
+    from smsledger.i18n import MESSAGES
+
+    ref = json.loads((MESSAGES / "en.json").read_text(encoding="utf-8"))
+    # A literal ending in a dot is a prefix being concatenated, not a key.
+    pattern = re.compile(r"""\b_t?\(\s*["']([a-z][a-z0-9._]*[a-z0-9])["']""")
+    src = Path(MESSAGES).parent
+    for path in sorted(src.rglob("*.py")):
+        for key in pattern.findall(path.read_text(encoding="utf-8")):
+            assert key in ref, f"{path.name} asks for a message that does not exist: {key}"
+
+
+def test_summary_speaks_korean_all_the_way_down(capsys) -> None:
+    """Invented rows -- the point is the wording, not the numbers."""
+    from smsledger.i18n import set_language
+    from smsledger.summary import report
+
+    rows = [
+        {"date": "2026-03-04", "ts": "2026-03-04 10:00", "kind": "card_approve",
+         "amount": 12_345, "merchant": "MADE UP SHOP"},
+        {"date": "2026-03-05", "ts": "2026-03-05 10:00", "kind": "card_cancel",
+         "amount": 345},
+        {"date": "2026-03-06", "ts": "2026-03-06 10:00", "kind": "bank_tx",
+         "amount": 50_000, "dir": "출금", "desc": "MADE UP TRANSFER",
+         "acct_tail": "9999", "balance": 1_000},
+        {"date": "2026-03-07", "ts": "2026-03-07 10:00", "kind": "bank_tx",
+         "amount": 70_000, "dir": "입금", "acct_tail": "9999", "balance": 71_000},
+        {"date": "2026-04-08", "ts": "2026-04-08 10:00", "kind": "corp_card_approve",
+         "amount": 9_000},
+    ]
+    try:
+        set_language("ko")
+        report(rows, "2026-03-01", "2026-04-30")
+        out = capsys.readouterr().out
+    finally:
+        set_language(None)
+
+    for english in ("Money out", "card approvals", "account withdrawals",
+                    "total out", "Money in", "Where it went", "as of", "Not shown"):
+        assert english not in out, f"still English: {english!r}"
+    assert "summary." not in out and "report.caveat" not in out   # no unresolved keys
+    assert "나간 돈" in out and "어디로 나갔나" in out
+    assert "12,345" in out                                        # values are untouched
+
+
+def test_doctor_speaks_korean_all_the_way_down(capsys) -> None:
+    from smsledger import doctor
+    from smsledger.i18n import set_language
+
+    try:
+        set_language("ko")
+        doctor.check_sync("")
+        doctor.check_coverage({"known": {}}, days=90)
+        doctor.check_unknown({"unknown": {"1500-0000": {"money": 4, "sample": "made up"}}},
+                             days=90, min_hits=1)
+        out = capsys.readouterr().out
+    finally:
+        set_language(None)
+
+    for english in ("Phone sync", "Recognised senders", "no parser",
+                    "sample:", "nothing arrived"):
+        assert english not in out, f"still English: {english!r}"
+    assert "doctor." not in out and "arrivals." not in out
+    assert "폰에서 오고 있나" in out and "예: made up" in out

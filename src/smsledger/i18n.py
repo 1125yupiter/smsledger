@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import unicodedata
 from functools import lru_cache
 from pathlib import Path
 
@@ -108,3 +109,37 @@ def t(key: str, **kw) -> str:
         except (KeyError, IndexError, ValueError):
             return text
     return text
+
+
+# --- laying out translated text ------------------------------------------------
+#
+# A terminal column is not a character. "card approvals" is 14 cells wide and its
+# Korean label is 5 characters but 10 cells, so ``f"{label:<22}"`` -- which counts
+# characters -- puts the amounts in a different place in each language. Every
+# aligned column and every wrapped paragraph below therefore measures cells.
+
+
+def cells(text: str) -> int:
+    """How many terminal columns ``text`` occupies."""
+    return sum(2 if unicodedata.east_asian_width(c) in "WF" else 1 for c in text)
+
+
+def pad(text: str, width: int) -> str:
+    """Left-align ``text`` in a column ``width`` cells wide."""
+    return text + " " * max(0, width - cells(text))
+
+
+def wrap(text: str, width: int, first: str = "", rest: str = "") -> list[str]:
+    """Break ``text`` into lines at most ``width`` cells wide, including indent."""
+    lines: list[str] = []
+    indent, current = first, ""
+    for word in text.split():
+        candidate = f"{current} {word}" if current else word
+        if current and cells(indent) + cells(candidate) > width:
+            lines.append(indent + current)
+            indent, current = rest, word
+        else:
+            current = candidate
+    if current:
+        lines.append(indent + current)
+    return lines

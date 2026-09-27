@@ -19,10 +19,18 @@ from collections import Counter, defaultdict
 from datetime import date, timedelta
 from pathlib import Path
 
+from .i18n import cells, pad
 from .i18n import t as _
+from .i18n import wrap
 from .paths import STREAM
 
 PARSED = STREAM / "parsed.jsonl"
+
+# Amounts are right-aligned in a 15-cell column (see ``money``); the label column
+# in front of them is this wide in every language.
+LABEL = 22
+# Terminal width the closing caveats are wrapped to.
+PROSE = 78
 
 # Corporate-card rows are prefixed so a personal ledger skips them.
 PERSONAL = ("card_approve", "card_cancel", "bank_tx")
@@ -39,7 +47,7 @@ STALE_DAYS = 90
 def load(path: Path | None = None) -> list[dict]:
     p = path or PARSED
     if not p.exists():
-        raise SystemExit(f"nothing parsed yet: {p}\nRun python3 -m smsledger refresh first.")
+        raise SystemExit(f"{_('summary.empty', path=p)}\n{_('summary.empty.fix')}")
     return [json.loads(l) for l in p.read_text(encoding="utf-8").splitlines() if l.strip()]
 
 
@@ -135,64 +143,65 @@ def report(rows: list[dict], since: str, until: str, redact: bool = False) -> No
     personal = [r for r in rows if r.get("kind") in PERSONAL]
     period = window(personal, since, until)
 
-    print(f"\nsmsledger summary   {since} .. {until}")
-    print(f"{'':2}{len(period)} transactions from {len(rows)} parsed rows\n")
+    print(f"\n{_('summary.title')}   {since} .. {until}")
+    print(f"{'':2}{_('summary.counts', shown=len(period), total=len(rows))}\n")
 
     approve, cancel = card_flow(period)
     out, inn = bank_flow(period)
-    print("  Money out")
-    print(f"    card approvals        {money(approve)}")
+    print("  " + _("summary.out.h"))
+    print(f"    {pad(_('summary.out.card'), LABEL)}{money(approve)}")
     if cancel:
-        print(f"    card cancellations    {money(-cancel)}")
-    print(f"    account withdrawals   {money(out)}")
+        print(f"    {pad(_('summary.out.cancel'), LABEL)}{money(-cancel)}")
+    print(f"    {pad(_('summary.out.bank'), LABEL)}{money(out)}")
     print(f"    {'':22}{'-' * 15}")
-    print(f"    total out             {money(approve - cancel + out)}")
-    print("\n  Money in")
-    print(f"    account deposits      {money(inn)}")
+    print(f"    {pad(_('summary.out.total'), LABEL)}{money(approve - cancel + out)}")
+    print("\n  " + _("summary.in.h"))
+    print(f"    {pad(_('summary.in.bank'), LABEL)}{money(inn)}")
 
     corp = [r for r in window(rows, since, until) if str(r.get("kind")).startswith("corp_card")]
     if corp:
         c_ap = sum(r.get("amount") or 0 for r in corp if r["kind"] == "corp_card_approve")
         c_cx = sum(r.get("amount") or 0 for r in corp if r["kind"] == "corp_card_cancel")
-        print("\n  Excluded from the above (not personal spending)")
-        print(f"    corporate card        {money(c_ap - c_cx)}   {len(corp)} rows")
+        print("\n  " + _("summary.corp.h"))
+        print(f"    {pad(_('summary.corp.card'), LABEL)}{money(c_ap - c_cx)}"
+              f"   {_('summary.corp.rows', count=len(corp))}")
 
     bals = last_balances(personal)
     if bals:
-        print("\n  Last reported balance   (a snapshot, not a current balance)")
+        print(f"\n  {_('summary.bal.h')}   {_('summary.bal.note')}")
         today = date.today()
         for tail, (stamp, bal) in sorted(bals.items(), key=lambda kv: kv[1][0], reverse=True):
             try:
                 age = (today - date.fromisoformat(stamp[:10])).days
             except ValueError:
                 age = 0
-            flag = f"   stale, {age // 30} months old" if age > STALE_DAYS else ""
-            print(f"    \u2026{tail:<8} {money(bal)}   as of {stamp[:16]}{flag}")
+            flag = f"   {_('summary.bal.stale', months=age // 30)}" if age > STALE_DAYS else ""
+            print(f"    \u2026{tail:<8} {money(bal)}"
+                  f"   {_('summary.bal.asof', stamp=stamp[:16])}{flag}")
 
     tops = top_counterparties(period)
     if tops:
-        print("\n  Where it went")
+        print("\n  " + _("summary.where.h"))
         shown = [(label(k, i + 1, redact), v, c) for i, (k, v, c) in enumerate(tops)]
-        width = max(len(k) for k, _, _ in shown)
+        width = max(cells(k) for k, _v, _c in shown)
         for name, total, count in shown:
-            print(f"    {name:<{width}} {money(total)}   {count}x")
+            print(f"    {pad(name, width)} {money(total)}"
+                  f"   {_('summary.where.count', count=count)}")
 
     series = monthly(personal)
     if len(series) > 1:
-        print("\n  Outflow by month")
+        print("\n  " + _("summary.monthly.h"))
         for month, total in series:
             print(f"    {month}   {money(total)}")
 
-    print("""
-  Not shown here
-    - transfers between your own accounts are counted as outflow. Nothing here
-      knows which counterparties are you, so moving money looks like spending --
-      this is the single largest distortion in the totals above
-    - what is left now: balances are as of their last message, so anything spent
-      since is not reflected
-    - what is coming: card charges approved but not yet billed
-    - categories and budgets: every row above is uncategorised
-""")
+    print("\n  " + _("summary.notshown.h"))
+    for lead, body in (("report.caveat.transfers.b", "report.caveat.transfers"),
+                       ("report.caveat.left.b", "report.caveat.left"),
+                       ("report.caveat.coming.b", "report.caveat.coming"),
+                       ("report.caveat.cat.b", "report.caveat.cat")):
+        for line in wrap(f"{_(lead)} {_(body)}", PROSE, first="    - ", rest="      "):
+            print(line)
+    print()
 
 
 def _main() -> None:

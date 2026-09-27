@@ -22,6 +22,9 @@ from pathlib import Path
 
 from .collect import CHAT_DB, MAIL_ROOT, copy_sqlite, match_sender
 from .config import sources as load_cfg
+from .i18n import cells
+from .i18n import t as _
+from .i18n import wrap
 from .paths import HOME, STREAM
 from .registry import kinds
 
@@ -65,27 +68,27 @@ def _line(mark: str, text: str) -> None:
 
 
 def check_paths() -> bool:
-    print("\nAccess")
+    print("\n" + _("doctor.access.h"))
     ok = True
     if not CHAT_DB.exists():
-        _line(BAD, f"no Messages database at {CHAT_DB}")
+        _line(BAD, _("doctor.access.nodb", path=CHAT_DB))
         ok = False
     else:
         tmp = SCRATCH
         if copy_sqlite(CHAT_DB, tmp) is None:
-            _line(BAD, "Messages database is not readable -- grant Full Disk Access")
+            _line(BAD, _("doctor.access.blocked"))
             ok = False
         else:
-            _line(OK, "Messages database readable")
+            _line(OK, _("doctor.access.ok"))
             _discard(tmp)
     try:
         list(MAIL_ROOT.iterdir())
-        _line(OK, f"Apple Mail readable at {MAIL_ROOT}")
+        _line(OK, _("doctor.access.mail.ok", path=MAIL_ROOT))
     except PermissionError:
-        _line(BAD, "Apple Mail is not readable -- grant Full Disk Access")
+        _line(BAD, _("doctor.access.mail.blocked"))
         ok = False
     except OSError:
-        _line(WARN, f"no Apple Mail data at {MAIL_ROOT} -- mail sources will find nothing")
+        _line(WARN, _("doctor.access.mail.none", path=MAIL_ROOT))
     return ok
 
 
@@ -124,66 +127,69 @@ def scan_messages(cfg: dict, days: int) -> dict:
             if not rec["sample"]:
                 rec["sample"] = re.sub(r"\s+", " ", body)[:60]
     except sqlite3.Error as exc:
-        _line(WARN, f"could not scan messages: {exc}")
+        _line(WARN, _("doctor.scan.failed", error=exc))
     finally:
         _discard(tmp)
     return {"known": known, "unknown": unknown, "newest": newest}
 
 
 def check_sync(newest: str) -> None:
-    print("\nPhone sync")
+    print("\n" + _("doctor.sync.h"))
     if not newest:
-        _line(BAD, "no inbound messages at all -- is Text Message Forwarding on?")
-        _line("", "  Settings > Messages > Text Message Forwarding, on your phone")
+        _line(BAD, _("doctor.sync.none"))
+        # The same instruction setup gives; there is only one place to turn this on.
+        _line("", _("arrivals.none.a2"))
     else:
-        _line(OK, f"most recent inbound message: {newest}")
+        _line(OK, _("doctor.sync.newest", stamp=newest))
 
 
 def check_coverage(scan: dict, days: int) -> None:
-    print(f"\nRecognised senders (last {days} days)")
+    print("\n" + _("doctor.coverage.h", days=days))
     known = scan.get("known") or Counter()
     if not known:
-        _line(WARN, "nothing matched your configured senders")
+        _line(WARN, _("doctor.coverage.none"))
     for kind, n in sorted(known.items(), key=lambda kv: -kv[1]):
-        _line(OK, f"{kind}: {n} messages")
+        _line(OK, f"{kind}: {_('doctor.coverage.count', count=n)}")
     missing = set(kinds()) - set(known)
     for kind in sorted(missing):
-        _line(WARN, f"{kind}: parser loaded, nothing arrived")
+        _line(WARN, f"{kind}: {_('doctor.coverage.idle')}")
 
 
 def check_unknown(scan: dict, days: int, min_hits: int = MIN_HITS) -> int:
     """The important one: money-shaped messages from senders with no parser."""
-    print(f"\nUnrecognised money messages (last {days} days)")
+    print("\n" + _("doctor.unknown.h", days=days))
     noisy = scan.get("unknown") or {}
     unknown = {k: v for k, v in noisy.items() if v["money"] >= min_hits}
     dropped = sum(v["money"] for k, v in noisy.items() if k not in unknown)
     if not unknown:
-        _line(OK, "none -- every money-shaped message has a parser")
+        _line(OK, _("doctor.unknown.none"))
         if dropped:
-            _line("", f"  ({dropped} one-off match(es) ignored as noise; "
-                      f"--min-hits 1 to see them)")
+            _line("", "  " + _("doctor.unknown.noise", count=dropped))
         return 0
     total = sum(v["money"] for v in unknown.values())
-    _line(WARN, f"{total} messages from {len(unknown)} sender(s) look like transactions "
-                f"but have no parser:")
+    lines = wrap(_("doctor.unknown.found", count=total, senders=len(unknown)),
+                 76, first=f"  {WARN} ", rest="    ")
+    for line in lines:
+        print(line)
     print()
     for sender, v in sorted(unknown.items(), key=lambda kv: -kv[1]["money"]):
-        print(f"      {sender}   {v['money']} messages")
-        print(f"      sample: {v['sample']}")   # your own message -- redact before sharing
-        print(f'      add to config/sources.json -> "sms": '
-              f'{{ "id": "...", "sender": "{sender}", "kind": "..." }}')
-        print("      then write locales/<cc>/<bank>.py -- see CONTRIBUTING.md")
+        print(f"      {sender}   {_('doctor.unknown.count', count=v['money'])}")
+        # your own message -- redact before sharing
+        print(f"      {_('doctor.unknown.sample', text=v['sample'])}")
+        snippet = '{ "id": "...", "sender": "%s", "kind": "..." }' % sender
+        print(f"      {_('doctor.unknown.add', snippet=snippet)}")
+        print(f"      {_('doctor.unknown.write')}")
         print()
     return total
 
 
 def check_gaps(cfg: dict, days: int) -> None:
     """Cursor only moves forward, so messages synced late are never collected."""
-    print("\nCollection gaps")
+    print("\n" + _("doctor.gaps.h"))
     cursor_path = STREAM / "cursor.json"
     out = STREAM / "notifications.jsonl"
     if not cursor_path.exists() or not out.exists():
-        _line(WARN, "nothing collected yet -- run python3 -m smsledger collect")
+        _line(WARN, _("doctor.gaps.nothing"))
         return
     cur = json.loads(cursor_path.read_text(encoding="utf-8"))
     since = cur.get("sms") or ""
@@ -216,18 +222,20 @@ def check_gaps(cfg: dict, days: int) -> None:
     finally:
         _discard(tmp)
     if behind > len(collected):
-        _line(WARN, f"{behind - len(collected)} message(s) sit before the cursor but were "
-                    f"never collected. Phones sync old messages late, and the cursor only "
-                    f"moves forward.")
-        _line("", "  fix: python3 -m smsledger collect --rescan")
+        for line in wrap(_("doctor.gaps.behind", count=behind - len(collected)),
+                         76, first=f"  {WARN} ", rest="    "):
+            print(line)
+        _line("", "  " + _("doctor.gaps.fix"))
     else:
-        _line(OK, "no messages stranded behind the cursor")
+        _line(OK, _("doctor.gaps.ok"))
 
 
 def check_mail_truncation() -> None:
-    print("\nMail bodies")
+    print("\n" + _("doctor.mail.h"))
     out = STREAM / "notifications.jsonl"
     if not out.exists():
+        # Printing the heading and then nothing looked like the check had crashed.
+        _line(OK, _("doctor.mail.empty"))
         return
     from .collect import body_limit
 
@@ -246,19 +254,22 @@ def check_mail_truncation() -> None:
         if len(row.get("text") or "") >= limit:
             hit += 1
     if not total:
-        _line(OK, "no mail collected yet")
+        _line(OK, _("doctor.mail.empty"))
     elif hit:
-        _line(WARN, f"{hit}/{total} mail bodies hit the {limit}-character limit. If a parser "
-                    f"is missing amounts, raise mail_body_limit in config.")
+        for line in wrap(_("doctor.mail.truncated", hit=hit, total=total, limit=limit),
+                         76, first=f"  {WARN} ", rest="    "):
+            print(line)
     else:
-        _line(OK, f"{total} mail bodies, none truncated at {limit} characters")
+        _line(OK, _("doctor.mail.intact", total=total, limit=limit))
 
 
 def run(days: int = 90, min_hits: int = MIN_HITS) -> int:
-    print(f"smsledger doctor   home={HOME}")
-    print(f"                   locales loaded: {', '.join(kinds()) or 'none'}")
+    title = _("doctor.title")
+    print(f"{title}   {_('doctor.home', path=HOME)}")
+    loaded = ", ".join(kinds()) or _("doctor.parsers.none")
+    print(f"{'':{cells(title) + 3}}{_('doctor.parsers', list=loaded)}")
     if not check_paths():
-        print("\nStop here: without read access nothing else can be checked.")
+        print("\n" + _("doctor.stop"))
         return 1
     cfg = load_cfg()
     scan = scan_messages(cfg, days)
@@ -269,10 +280,12 @@ def run(days: int = 90, min_hits: int = MIN_HITS) -> int:
     check_mail_truncation()
     print()
     if unknown:
-        print(f"Verdict: works, but {unknown} transaction message(s) are going unread.")
-        print("         Adding a parser is one file -- see CONTRIBUTING.md.")
+        # Hanging-indenting under "Verdict: " would sit in the wrong place once the
+        # word is translated, so the follow-up gets its own indented line.
+        print(_("doctor.verdict.unread", count=unknown))
+        print("  " + _("doctor.verdict.parser"))
     else:
-        print("Verdict: everything arriving is understood.")
+        print(_("doctor.verdict.ok"))
     return 0
 
 
