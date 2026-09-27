@@ -61,6 +61,13 @@ def main(argv: list[str] | None = None) -> int:
     try:
         module.main()
     except SystemExit as exc:
+        # ``SystemExit("a sentence")`` is how a command stops with something to say --
+        # "nothing parsed yet, run refresh first", for one. Coercing that to an exit
+        # code raised a ValueError traceback on top of it, so the one line written
+        # for the reader was the one thing they never saw.
+        if isinstance(exc.code, str):
+            print(exc.code, file=sys.stderr)
+            return 1
         return int(exc.code or 0)
     return 0
 
