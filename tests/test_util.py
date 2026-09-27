@@ -93,3 +93,20 @@ def test_redact_replaces_payee_names_with_positions() -> None:
 
     assert label("SOME LANDLORD", 3, redact=True) == "payee 3"
     assert label("SOME LANDLORD", 3, redact=False) == "SOME LANDLORD"
+
+
+def test_nice_ceiling_rounds_axis_max_to_a_readable_number() -> None:
+    """A tick of 12,127,964 reads as noise; nobody checks a bar against it."""
+    from smsledger.report import nice_ceiling
+
+    assert nice_ceiling(12_127_964 / 3) == 5_000_000   # -> axis max 15M, ticks 0/5/10/15
+    assert nice_ceiling(93) == 100
+    assert nice_ceiling(0) == 1.0
+
+
+def test_compact_is_for_axis_labels_only() -> None:
+    from smsledger.report import compact
+
+    assert compact(15_000_000) == "15M"
+    assert compact(1_500_000) == "1.5M"
+    assert compact(950) == "950"
