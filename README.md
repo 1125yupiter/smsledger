@@ -10,6 +10,53 @@ Reads only the SMS and email that already arrived on your Mac.
 
 Built and verified against **6,249 real notices**.
 
+## Getting started
+
+```bash
+pip3 install smsledger
+smsledger-setup
+```
+
+`smsledger-setup` asks a few plain questions, writes the configuration for you,
+reads your messages, builds the report and offers to keep it up to date. After
+that, **using this is opening one bookmarked file.** You do not have to touch a
+config file or run anything again.
+
+It works with the Python that ships with macOS — there is nothing else to install.
+
+### What it needs
+
+- **macOS.** The notices are read from `~/Library/Messages/chat.db` and Apple Mail.
+- **Your phone's messages on this Mac** — on the phone, Settings > Messages >
+  Text Message Forwarding.
+- **Full Disk Access**, which is what lets it read the notices your bank already sent
+  you. Setup tells you exactly what to do if it is missing, and it stops loudly rather
+  than quietly reading nothing.
+
+Not sure any of this applies to you? `smsledger-doctor` answers it in about thirty
+seconds without changing anything.
+
+### Keeping it current
+
+`smsledger-setup` offers this at the end; you can also do it later:
+
+```bash
+smsledger-agent install     # refresh a few times a day, in the background
+smsledger-agent status      # is it running, and did the last run work
+smsledger-agent remove      # stop it
+```
+
+macOS grants file permission per program, and a background task counts as a different
+program from your terminal. So `install` waits for the first run and **tells you if it
+was blocked** — an agent that runs on time and silently collects nothing is the worst
+kind of broken.
+
+### If you would rather not have a background task
+
+```bash
+smsledger-refresh           # collect, parse and rebuild the report, once
+```
+
 ## What it handles
 
 | | |
@@ -49,33 +96,22 @@ Collection is country-neutral. macOS Messages and Apple Mail work the same every
 Adding your country is **one file plus one config line**. Worth doing wherever you would rather
 not hand your bank credentials to an aggregator to get your own transactions back.
 
-## Requirements
+## Doing it by hand
 
-- **macOS.** The data comes from `~/Library/Messages/chat.db` and Apple Mail.
-- **Your phone's messages forwarded to this Mac** (Settings > Messages > Text Message Forwarding).
-- **Full Disk Access.** Without it collection does not quietly return nothing — it stops loudly.
-- Apple Mail is read at `Library/Mail/V10`. A future macOS may move that; known limitation.
-
-## Use
+Every step is a command of its own, and the parsers are importable on their own:
 
 ```bash
-pip install smsledger
-
-export SMSLEDGER_HOME=~/smsledger        # keep data out of the repo
-mkdir -p $SMSLEDGER_HOME/config
-cp config/sources.example.json $SMSLEDGER_HOME/config/sources.json
-
-smsledger-collect   # messages + mail -> $SMSLEDGER_HOME/data/stream/notifications.jsonl
-smsledger-parse     # -> parsed.jsonl
+smsledger-collect           # messages + mail -> notifications.jsonl   (--rescan to sweep all)
+smsledger-parse             # -> parsed.jsonl
+smsledger-summary           # a summary in the terminal                (--redact to share)
+smsledger-report            # the HTML page                            (--redact to share)
 ```
-
-As a library, no files or config needed:
 
 ```python
 from smsledger.registry import parse_row
 
-# A real Korean card approval looks like this: issuer + "승인" (approved),
-# amount + "일시불" (single payment), MM/DD HH:MM, then the merchant.
+# A real Korean card approval: issuer + "승인" (approved), amount + "일시불"
+# (single payment), MM/DD HH:MM, then the merchant.
 parse_row({"kind": "hyundai_card", "ts": "2026-09-20 13:05:11",
            "text": "현대카드 승인\n12,300원 일시불\n09/20 13:05\nSOME CAFE"})
 # {'kind': 'card_approve', 'amount': 12300, 'installment': '일시불',
@@ -92,8 +128,9 @@ parse_row({"kind": "hyundai_card", "ts": "2026-09-20 13:05:11",
 **Full account numbers are never accepted.** Notices only carry the tail, so the tail is
 enough — and not accepting something is the surest way not to leak it.
 
-Lookup order: `$SMSLEDGER_HOME/config/*.json` → the repo's `*.example.json` → code defaults.
-Parsers run with no config at all.
+`smsledger-setup` writes these for you. Lookup order is
+`$SMSLEDGER_HOME/config/*.json` → the shipped `*.example.json` → code defaults, and the
+parsers run with no config at all.
 
 ## What it does not do
 

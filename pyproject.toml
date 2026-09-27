@@ -7,7 +7,7 @@ name = "smsledger"
 version = "0.1.0"
 description = "Turn bank/card SMS and email notifications into ledger rows -- no login, no server (macOS)"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.9"
 license = { text = "MIT" }
 dependencies = []
 
@@ -20,6 +20,9 @@ smsledger-collect = "smsledger.collect:main"
 smsledger-parse = "smsledger.parse:main"
 smsledger-summary = "smsledger.summary:main"
 smsledger-report = "smsledger.report:main"
+smsledger-refresh = "smsledger.refresh:main"
+smsledger-agent = "smsledger.agent:main"
+smsledger-setup = "smsledger.setup:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
