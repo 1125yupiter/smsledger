@@ -11,16 +11,24 @@ dynamic = ["version"]
 description = "Turn bank/card SMS and email notifications into ledger rows -- no login, no server (macOS)"
 readme = "README.md"
 requires-python = ">=3.9"
+# Left as a table, not an SPDX string: the string form needs setuptools>=77, and
+# this tool's floor is the pip that ships with Apple's python3. Deprecated, not
+# removed, until 2027-02.
 license = { text = "MIT" }
 keywords = ["sms", "email", "personal-finance", "ledger", "macos", "privacy", "korea"]
 classifiers = [
   "Development Status :: 4 - Beta",
+  "Environment :: Console",
   "Environment :: MacOS X",
   "Intended Audience :: End Users/Desktop",
   "License :: OSI Approved :: MIT License",
   "Operating System :: MacOS :: MacOS X",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
   "Topic :: Office/Business :: Financial",
   "Natural Language :: English",
   "Natural Language :: Korean",
