@@ -174,14 +174,18 @@ def build(days: int = 90) -> str:
         "smsledger support report",
         f"generated  {datetime.now().isoformat(timespec='seconds')}",
         "",
-        f"send to   {SUPPORT_EMAIL}",
+        f"{_('support.file.sendto')}   {SUPPORT_EMAIL}",
         "",
-        "WHAT IS IN THIS FILE",
-        "  versions, permission status, row counts, error traces, and the sender",
-        "  addresses of messages that have no parser yet.",
-        "WHAT IS NOT",
-        "  no message text, no amounts, no merchants, no account numbers, no names.",
-        "  Your username is replaced with ~. Read it before you send it.",
+        # Section headers stay English so the file reads the same to whoever ends up
+        # diagnosing it. These two paragraphs are for the sender, not the reader:
+        # nobody can decide whether to send a file describing itself in a language
+        # they do not read.
+        _("support.file.in"),
+        "  " + _("support.file.in1"),
+        "  " + _("support.file.in2"),
+        _("support.file.out"),
+        "  " + _("support.file.out1"),
+        "  " + _("support.file.out2"),
         "",
         "ENVIRONMENT",
         f"  smsledger      {__version__}",

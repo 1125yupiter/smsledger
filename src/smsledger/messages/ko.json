@@ -131,5 +131,12 @@
   "cli.agent": "백그라운드에서 알아서 갱신해요 (install/status/remove)",
   "cli.support": "문제가 생겼을 때, 물어볼 수 있는 파일을 만들어요",
   "cli.start": "처음이면 이걸 실행하세요: python3 -m smsledger setup",
-  "cli.unknown": "“{name}” 라는 명령은 없어요."
+  "cli.unknown": "“{name}” 라는 명령은 없어요.",
+  "support.file.in": "이 파일에 들어 있는 것",
+  "support.file.in1": "버전, 권한 상태, 건수, 오류 기록, 그리고 아직 읽지 못하는",
+  "support.file.in2": "알림의 발신 주소.",
+  "support.file.out": "들어 있지 않은 것",
+  "support.file.out1": "문자 내용, 금액, 가맹점, 계좌번호, 이름 — 하나도 없어요.",
+  "support.file.out2": "맥 사용자 이름은 ~ 로 가려요. 보내기 전에 열어서 읽어 보세요.",
+  "support.file.sendto": "보낼 곳"
 }

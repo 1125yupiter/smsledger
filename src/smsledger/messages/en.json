@@ -131,5 +131,12 @@
   "cli.agent": "keep it up to date in the background (install/status/remove)",
   "cli.support": "something is wrong -- make a file that can be diagnosed",
   "cli.start": "New here? Run: python3 -m smsledger setup",
-  "cli.unknown": "There is no command called “{name}”."
+  "cli.unknown": "There is no command called “{name}”.",
+  "support.file.in": "WHAT IS IN THIS FILE",
+  "support.file.in1": "versions, permission status, row counts, error traces, and the sender",
+  "support.file.in2": "addresses of messages that have no parser yet.",
+  "support.file.out": "WHAT IS NOT",
+  "support.file.out1": "no message text, no amounts, no merchants, no account numbers, no names.",
+  "support.file.out2": "Your username is replaced with ~. Read it before you send it.",
+  "support.file.sendto": "send to"
 }
