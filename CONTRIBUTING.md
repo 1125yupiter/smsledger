@@ -87,6 +87,13 @@ the test stop representing a real message.
 Minimum set: a normal transaction · a cancellation or an inbound one · a non-transaction notice
 (`skip`) · a body whose amount cannot be read (`"expect": null`).
 
+### Pinning a gap you are not fixing
+
+A fixture may carry `"broken": "<what is wrong and what the fix is>"`. `expect` then holds the
+**correct** output rather than today's, and the case runs as a strict expected failure. This is
+how a known gap stays measured instead of becoming a comment nobody re-reads. Fixing the parser
+makes the case fail until the flag is deleted, so the note and the bug leave together.
+
 ## 3b. If your transactions arrive by email
 
 Nothing extra is needed — a parser receives a body and does not know the channel. Two things
@@ -105,7 +112,13 @@ A parser that needs the *whole* message — an itemised order table, a statement
 should read the `.emlx` itself rather than widen the limit for everyone.
 
 **Fixtures work the same way.** Save the flattened body (what `strip_html` returns) as the
-`.txt`, not the raw HTML, and fabricate every value in it.
+`.txt`, not the raw HTML, and fabricate every value in it. Mark the spec `"channel": "mail"`;
+`test_every_parsed_mail_sender_has_a_mail_fixture` requires one per mail sender, for the same
+reason a parser may not ship without a fixture.
+
+The shipped Korean parsers are the cautionary example: written against SMS, they read lines by
+position, and on a one-line mail body they silently lose the description. Two fixtures pin it
+(`hana_mail_withdraw`, `kb_mail_withdraw`). Anchoring on wording is not a style preference.
 
 ## 4. One config line — `src/smsledger/examples/sources.example.json`
 

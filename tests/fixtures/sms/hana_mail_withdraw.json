@@ -1,0 +1,19 @@
+{
+  "kind": "hana_alert",
+  "channel": "mail",
+  "ts": "2026-10-05 15:20:10",
+  "note": "The same notice arriving by mail. strip_html has already collapsed the HTML to one line, so every line-position rule in the parser now sees a single line -- which is the whole difference between the two channels.",
+  "broken": "The KR bank parsers read lines by position, and a flattened mail body has one line. hana takes acct_tail from the digits of that whole line, so it ends up with the last five digits of the balance, and desc comes out empty because the one line contains 하나 and 출금. Anchor on wording instead, the way CONTRIBUTING already tells contributors to for mail. Remove this flag with the fix.",
+  "expect": {
+    "kind": "bank_tx",
+    "acct_tail": "45678",
+    "dir": "출금",
+    "amount": 45000,
+    "desc": "테스트관리비",
+    "balance": 9876543,
+    "mmdd": "10/05",
+    "hhmm": "15:20",
+    "date": "2026-10-05",
+    "source": "hana_alert"
+  }
+}

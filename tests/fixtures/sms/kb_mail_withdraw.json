@@ -1,0 +1,20 @@
+{
+  "kind": "kb_alert",
+  "channel": "mail",
+  "ts": "2026-10-07 09:30:00",
+  "note": "The same notice arriving by mail, flattened to one line. The amount survives here because the fallback picks the second-to-last number, so this case isolates exactly what the flattening costs.",
+  "broken": "desc comes out empty: the single line holds the masked account, so the description loop skips it and there is nothing left to read. A row with no description is later classified as a fee -- the failure kb_acct_as_desc exists to prevent, arriving through the other channel. Remove this flag with the fix.",
+  "expect": {
+    "kind": "bank_tx",
+    "acct_tail": "789",
+    "dir": "출금",
+    "amount": 88000,
+    "counterparty": "테스트관리소",
+    "desc": "테스트관리소",
+    "balance": 1234567,
+    "mmdd": "10/07",
+    "hhmm": "09:30",
+    "date": "2026-10-07",
+    "source": "kb_alert"
+  }
+}
