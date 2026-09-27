@@ -23,6 +23,7 @@ smsledger-report = "smsledger.report:main"
 smsledger-refresh = "smsledger.refresh:main"
 smsledger-agent = "smsledger.agent:main"
 smsledger-setup = "smsledger.setup:main"
+smsledger-support = "smsledger.support:main"
 
 [tool.setuptools.package-data]
 smsledger = ["messages/*.json"]

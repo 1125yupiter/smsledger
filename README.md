@@ -69,6 +69,28 @@ kind of broken.
 smsledger-refresh           # collect, parse and rebuild the report, once
 ```
 
+## If something goes wrong
+
+```bash
+smsledger-support
+```
+
+Writes one plain-text file with what is needed to diagnose it. **Open it and read it
+before sending** — it is deliberately readable.
+
+| In it | Not in it |
+|---|---|
+| versions, macOS, permissions, row counts | message text, amounts, merchants |
+| error traces, background-task status | account numbers, names |
+| senders that have no parser yet | your username (replaced with `~`) |
+
+That split is enforced by a test, not by a promise on a page.
+
+Failures are appended to `errors.log` in your data folder as they happen, so a
+problem you hit last Tuesday is still answerable today.
+
+To update after a fix ships: `pip3 install -U smsledger`.
+
 ## What it handles
 
 | | |

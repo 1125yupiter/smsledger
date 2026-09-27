@@ -260,13 +260,39 @@ def run(days: int = 90, min_hits: int = MIN_HITS) -> int:
     return 0
 
 
-def main() -> None:
+def _main() -> None:
     ap = argparse.ArgumentParser(description="Check whether smsledger can work here")
     ap.add_argument("--days", type=int, default=90, help="how far back to scan (default 90)")
     ap.add_argument("--min-hits", type=int, default=MIN_HITS,
                     help=f"report an unknown sender after this many hits (default {MIN_HITS})")
     args = ap.parse_args()
     raise SystemExit(run(args.days, args.min_hits))
+
+
+def _guarded(fn, name):
+    """Wrap a CLI entry point so a failure is still findable tomorrow.
+
+    An unhandled traceback goes to a terminal that gets closed. Support requests
+    arrive days later, by which time the only question that matters -- what actually
+    went wrong -- has no answer anywhere on disk.
+    """
+    def wrapper():
+        try:
+            fn()
+        except SystemExit:
+            raise
+        except BaseException as exc:
+            from .support import ERRORS, record_error
+            record_error(name, exc)
+            print(f"\n{type(exc).__name__}: {exc}", file=__import__("sys").stderr)
+            print(f"recorded in {ERRORS}", file=__import__("sys").stderr)
+            print("smsledger-support  writes a file you can send for help",
+                  file=__import__("sys").stderr)
+            raise SystemExit(1)
+    return wrapper
+
+
+main = _guarded(_main, "smsledger-doctor")
 
 
 if __name__ == "__main__":

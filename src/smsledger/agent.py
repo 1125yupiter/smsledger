@@ -144,7 +144,7 @@ def status() -> int:
     return 0
 
 
-def main() -> None:
+def _main() -> None:
     ap = argparse.ArgumentParser(description="Schedule smsledger to keep itself up to date")
     sub = ap.add_subparsers(dest="cmd")
     p = sub.add_parser("install", help="install and start the scheduled refresh")
@@ -160,6 +160,32 @@ def main() -> None:
     if a.cmd == "remove":
         raise SystemExit(remove())
     raise SystemExit(status())
+
+
+def _guarded(fn, name):
+    """Wrap a CLI entry point so a failure is still findable tomorrow.
+
+    An unhandled traceback goes to a terminal that gets closed. Support requests
+    arrive days later, by which time the only question that matters -- what actually
+    went wrong -- has no answer anywhere on disk.
+    """
+    def wrapper():
+        try:
+            fn()
+        except SystemExit:
+            raise
+        except BaseException as exc:
+            from .support import ERRORS, record_error
+            record_error(name, exc)
+            print(f"\n{type(exc).__name__}: {exc}", file=__import__("sys").stderr)
+            print(f"recorded in {ERRORS}", file=__import__("sys").stderr)
+            print("smsledger-support  writes a file you can send for help",
+                  file=__import__("sys").stderr)
+            raise SystemExit(1)
+    return wrapper
+
+
+main = _guarded(_main, "smsledger-agent")
 
 
 if __name__ == "__main__":

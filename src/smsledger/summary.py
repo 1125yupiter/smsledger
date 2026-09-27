@@ -195,7 +195,7 @@ def report(rows: list[dict], since: str, until: str, redact: bool = False) -> No
 """)
 
 
-def main() -> None:
+def _main() -> None:
     ap = argparse.ArgumentParser(description="Summarise parsed notices")
     ap.add_argument("--days", type=int, default=30, help="window length (default 30)")
     ap.add_argument("--since", help="start date YYYY-MM-DD (overrides --days)")
@@ -213,6 +213,32 @@ def main() -> None:
     else:
         since = (date.fromisoformat(until) - timedelta(days=a.days)).isoformat()
     report(load(), since, until, a.redact)
+
+
+def _guarded(fn, name):
+    """Wrap a CLI entry point so a failure is still findable tomorrow.
+
+    An unhandled traceback goes to a terminal that gets closed. Support requests
+    arrive days later, by which time the only question that matters -- what actually
+    went wrong -- has no answer anywhere on disk.
+    """
+    def wrapper():
+        try:
+            fn()
+        except SystemExit:
+            raise
+        except BaseException as exc:
+            from .support import ERRORS, record_error
+            record_error(name, exc)
+            print(f"\n{type(exc).__name__}: {exc}", file=__import__("sys").stderr)
+            print(f"recorded in {ERRORS}", file=__import__("sys").stderr)
+            print("smsledger-support  writes a file you can send for help",
+                  file=__import__("sys").stderr)
+            raise SystemExit(1)
+    return wrapper
+
+
+main = _guarded(_main, "smsledger-summary")
 
 
 if __name__ == "__main__":

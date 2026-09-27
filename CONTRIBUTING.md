@@ -155,6 +155,15 @@ Detection order: `SMSLEDGER_LANG` → `language` in `config/profile.json` → th
 `LANG` is routinely unset in Terminal and always unset under launchd — relying on
 `LANG` alone gives a Korean Mac an English interface.
 
+## Reporting a problem
+
+`smsledger-support` writes everything needed. Attach that file.
+
+If you are adding to it, the rule is the one printed at the top of its output:
+**facts about the environment go in, facts about money stay out.** A test
+(`test_support_report_carries_no_money_data`) plants known values in a fake home and
+asserts none of them reach the file. Extend that test alongside any new section.
+
 ## Not accepted
 
 - Code that fetches data by logging in, scraping, or calling an open-banking API. Not doing

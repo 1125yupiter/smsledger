@@ -139,3 +139,52 @@ def test_compact_is_for_axis_labels_only() -> None:
     assert compact(15_000_000) == "15M"
     assert compact(1_500_000) == "1.5M"
     assert compact(950) == "950"
+
+
+def test_support_report_carries_no_money_data(tmp_path, monkeypatch) -> None:
+    """The file is meant to be sent to a stranger. Enforce what it may contain.
+
+    Facts about the environment go in; facts about money stay out. This is the test
+    that keeps the claim printed at the top of the file honest as the code changes.
+    """
+    import json
+    import sys
+
+    home = tmp_path / "home"
+    (home / "data" / "stream").mkdir(parents=True)
+    (home / "config").mkdir(parents=True)
+
+    secret_merchant = "VERY-SPECIFIC-MERCHANT-NAME"
+    secret_amount = "98765432"
+    secret_body = "SECRET-MESSAGE-BODY-TEXT"
+    (home / "data" / "stream" / "parsed.jsonl").write_text(
+        json.dumps({"kind": "card_approve", "amount": int(secret_amount),
+                    "merchant": secret_merchant, "desc": secret_merchant,
+                    "text": secret_body, "acct_tail": "13579",
+                    "date": "2026-09-20", "source": "x"}) + "\n",
+        encoding="utf-8")
+    (home / "config" / "profile.json").write_text(
+        json.dumps({"accounts": [{"id": "a", "alias": "MY PRIVATE ALIAS", "tail": "13579"}],
+                    "self_patterns": ["MY REAL NAME"]}), encoding="utf-8")
+
+    monkeypatch.setenv("SMSLEDGER_HOME", str(home))
+    for mod in [m for m in list(sys.modules) if m.startswith("smsledger")]:
+        del sys.modules[mod]
+    from smsledger.support import build
+
+    text = build(days=1)
+
+    for leaked in (secret_merchant, secret_amount, secret_body,
+                   "MY PRIVATE ALIAS", "MY REAL NAME", "13579"):
+        assert leaked not in text, f"support report leaked {leaked!r}"
+    # ...while still being useful
+    assert "smsledger support report" in text
+    assert "rows" in text and "1" in text
+
+
+def test_support_report_hides_the_username(tmp_path, monkeypatch) -> None:
+    from smsledger.support import tilde
+    from pathlib import Path
+
+    assert str(Path.home()) not in tilde(str(Path.home() / "smsledger" / "x.json"))
+    assert tilde(str(Path.home() / "a")).startswith("~")

@@ -315,7 +315,7 @@ def build(rows: list[dict], since: str, until: str, redact: bool) -> str:
 """
 
 
-def main() -> None:
+def _main() -> None:
     ap = argparse.ArgumentParser(description="Render the summary as an HTML page")
     ap.add_argument("--days", type=int, default=30)
     ap.add_argument("--since")
@@ -338,6 +338,32 @@ def main() -> None:
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(build(load(), since, until, a.redact), encoding="utf-8")
     print(f"wrote {out}")
+
+
+def _guarded(fn, name):
+    """Wrap a CLI entry point so a failure is still findable tomorrow.
+
+    An unhandled traceback goes to a terminal that gets closed. Support requests
+    arrive days later, by which time the only question that matters -- what actually
+    went wrong -- has no answer anywhere on disk.
+    """
+    def wrapper():
+        try:
+            fn()
+        except SystemExit:
+            raise
+        except BaseException as exc:
+            from .support import ERRORS, record_error
+            record_error(name, exc)
+            print(f"\n{type(exc).__name__}: {exc}", file=__import__("sys").stderr)
+            print(f"recorded in {ERRORS}", file=__import__("sys").stderr)
+            print("smsledger-support  writes a file you can send for help",
+                  file=__import__("sys").stderr)
+            raise SystemExit(1)
+    return wrapper
+
+
+main = _guarded(_main, "smsledger-report")
 
 
 if __name__ == "__main__":
