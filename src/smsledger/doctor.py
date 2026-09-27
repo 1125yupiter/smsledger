@@ -44,6 +44,22 @@ MIN_HITS = 3
 OK, WARN, BAD = "✓", "!", "✗"
 
 
+SCRATCH = Path("/tmp/smsledger-doctor.db")
+
+
+def _discard(tmp: Path) -> None:
+    """Delete the working copy *and its journal*.
+
+    ``copy_sqlite`` brings the ``-wal`` and ``-shm`` sidecars across, because
+    without them the newest messages are invisible. Deleting only the ``.db``
+    left a two-megabyte write-ahead log -- containing message text -- lying in
+    ``/tmp`` after every run, and the next read paired a fresh database with that
+    stale journal and reported it as malformed.
+    """
+    for suffix in ("", "-wal", "-shm"):
+        Path(str(tmp) + suffix).unlink(missing_ok=True)
+
+
 def _line(mark: str, text: str) -> None:
     print(f"  {mark} {text}")
 
@@ -55,13 +71,13 @@ def check_paths() -> bool:
         _line(BAD, f"no Messages database at {CHAT_DB}")
         ok = False
     else:
-        tmp = Path("/tmp/smsledger-doctor.db")
+        tmp = SCRATCH
         if copy_sqlite(CHAT_DB, tmp) is None:
             _line(BAD, "Messages database is not readable -- grant Full Disk Access")
             ok = False
         else:
             _line(OK, "Messages database readable")
-            tmp.unlink(missing_ok=True)
+            _discard(tmp)
     try:
         list(MAIL_ROOT.iterdir())
         _line(OK, f"Apple Mail readable at {MAIL_ROOT}")
@@ -75,7 +91,7 @@ def check_paths() -> bool:
 
 def scan_messages(cfg: dict, days: int) -> dict:
     """Group recent inbound messages by sender, flagging the money-shaped ones."""
-    tmp = Path("/tmp/smsledger-doctor.db")
+    tmp = SCRATCH
     if copy_sqlite(CHAT_DB, tmp) is None:
         return {}
     senders = {s["sender"]: s for s in cfg.get("sms") or []}
@@ -110,7 +126,7 @@ def scan_messages(cfg: dict, days: int) -> dict:
     except sqlite3.Error as exc:
         _line(WARN, f"could not scan messages: {exc}")
     finally:
-        tmp.unlink(missing_ok=True)
+        _discard(tmp)
     return {"known": known, "unknown": unknown, "newest": newest}
 
 
@@ -171,7 +187,7 @@ def check_gaps(cfg: dict, days: int) -> None:
         return
     cur = json.loads(cursor_path.read_text(encoding="utf-8"))
     since = cur.get("sms") or ""
-    tmp = Path("/tmp/smsledger-doctor.db")
+    tmp = SCRATCH
     if copy_sqlite(CHAT_DB, tmp) is None:
         return
     senders = {s["sender"]: s for s in cfg.get("sms") or []}
@@ -198,7 +214,7 @@ def check_gaps(cfg: dict, days: int) -> None:
     except sqlite3.Error:
         return
     finally:
-        tmp.unlink(missing_ok=True)
+        _discard(tmp)
     if behind > len(collected):
         _line(WARN, f"{behind - len(collected)} message(s) sit before the cursor but were "
                     f"never collected. Phones sync old messages late, and the cursor only "
