@@ -1,7 +1,7 @@
 # Financial data never enters the repository. Once committed it cannot be removed.
 .smsledger/
 config/*.json
-!config/*.example.json
+!src/smsledger/examples/*.json
 *.jsonl
 *.csv
 *.xls

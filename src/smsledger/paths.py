@@ -17,4 +17,8 @@ CONFIG = HOME / "config"
 STREAM = DATA / "stream"
 
 PKG = Path(__file__).resolve().parent
-EXAMPLES = PKG.parent.parent / "config"
+
+# Inside the package on purpose. These shipped defaults are what `setup` copies, so if
+# they live next to the source tree instead they simply are not there after a
+# `pip3 install` -- setup writes an empty configuration and the tool recognises nothing.
+EXAMPLES = PKG / "examples"

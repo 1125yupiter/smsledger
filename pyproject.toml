@@ -43,7 +43,7 @@ smsledger-setup = "smsledger.setup:main"
 smsledger-support = "smsledger.support:main"
 
 [tool.setuptools.package-data]
-smsledger = ["messages/*.json"]
+smsledger = ["messages/*.json", "examples/*.json"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

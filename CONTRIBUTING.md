@@ -107,7 +107,7 @@ should read the `.emlx` itself rather than widen the limit for everyone.
 **Fixtures work the same way.** Save the flattened body (what `strip_html` returns) as the
 `.txt`, not the raw HTML, and fabricate every value in it.
 
-## 4. One config line — `config/sources.example.json`
+## 4. One config line — `src/smsledger/examples/sources.example.json`
 
 ```json
 { "id": "hdfc_sms", "sender": "+911234567890", "kind": "hdfc_alert", "note": "HDFC alerts" }
