@@ -85,7 +85,7 @@ full-width parentheses, carrier prefixes are all things the parser sees. "Tidyin
 the test stop representing a real message.
 
 Minimum set: a normal transaction · a cancellation or an inbound one · a non-transaction notice
-(`skip`).
+(`skip`) · a body whose amount cannot be read (`"expect": null`).
 
 ## 3b. If your transactions arrive by email
 

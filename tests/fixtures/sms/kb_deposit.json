@@ -1,0 +1,18 @@
+{
+  "kind": "kb_alert",
+  "ts": "2026-10-04 11:05:00",
+  "note": "An inbound one. Same position rule as the withdrawal -- the amount line sits just before the balance line -- so this pins that the rule does not depend on the word 출금.",
+  "expect": {
+    "kind": "bank_tx",
+    "acct_tail": "789",
+    "dir": "입금",
+    "amount": 700000,
+    "counterparty": "테스트조합",
+    "desc": "테스트조합",
+    "balance": 3045678,
+    "mmdd": "10/04",
+    "hhmm": "11:05",
+    "date": "2026-10-04",
+    "source": "kb_alert"
+  }
+}

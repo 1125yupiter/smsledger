@@ -1,0 +1,17 @@
+{
+  "kind": "hana_alert",
+  "ts": "2026-10-02 09:41:30",
+  "note": "An inbound one. Direction is read from the word, not from the sign of the amount, and a ledger that treats every Hana notice as money leaving is wrong by twice the deposit.",
+  "expect": {
+    "kind": "bank_tx",
+    "acct_tail": "45678",
+    "dir": "입금",
+    "amount": 250000,
+    "desc": "테스트급여",
+    "balance": 13000000,
+    "mmdd": "10/02",
+    "hhmm": "09:41",
+    "date": "2026-10-02",
+    "source": "hana_alert"
+  }
+}

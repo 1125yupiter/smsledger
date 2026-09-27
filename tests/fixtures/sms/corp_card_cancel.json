@@ -1,0 +1,17 @@
+{
+  "kind": "corp_card",
+  "ts": "2026-09-26 18:40:00",
+  "note": "A corporate cancellation. Both halves have to stay out of personal spending: read as corp_card_approve, a refunded charge is added twice to the company total the remaining-limit check is built on.",
+  "expect": {
+    "kind": "corp_card_cancel",
+    "amount": 12000,
+    "card_tail": "1234",
+    "merchant": "테스트식당",
+    "remaining": 666300,
+    "mmdd": "09/26",
+    "hhmm": "18:40",
+    "date": "2026-09-26",
+    "desc": "테스트식당",
+    "source": "kb_corp_card"
+  }
+}
