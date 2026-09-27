@@ -133,6 +133,12 @@ and navigation come before anything useful. `strip_html` drops `<style>`/`<scrip
 first, and `mail_body_limit` (default 8000) is generous on purpose — truncating the one line
 that mattered is the expensive mistake.
 
+One caveat, measured rather than assumed: collection is equal, **the shipped Korean parsers are
+not yet.** They were written against SMS and read lines by position, and `strip_html` hands them
+a single line, so on the mail path they lose the description — and Hana also reads the account
+tail off the wrong number. Two fixtures pin it (`hana_mail_withdraw`, `kb_mail_withdraw`) and it
+is open. A new parser should anchor on wording instead; CONTRIBUTING.md says how.
+
 ## Which countries
 
 Collection is country-neutral. macOS Messages and Apple Mail work the same everywhere;
