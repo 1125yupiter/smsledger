@@ -48,18 +48,41 @@ def save_cursor(cur: dict) -> None:
     CURSOR.write_text(json.dumps(cur, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def existing_hashes() -> set[str]:
-    seen: set[str] = set()
+def identity(row: dict) -> tuple:
+    """A message's identity, independent of how its body was processed.
+
+    The content hash alone is not enough. Change anything upstream of it -- the
+    HTML flattening, the body limit -- and every hash changes, so the whole history
+    re-collects as a second copy of itself and every transaction counts twice.
+    That is not hypothetical: it happened here when the mail body limit was raised,
+    187 rows deep, and the hashes were all distinct so nothing looked wrong.
+
+    Channel, timestamp and sender identify a message the way the sender sees it,
+    and none of them depend on our parsing. Two genuinely distinct messages from
+    one sender in the same second are possible in principle; the content hash still
+    separates those, which is why both checks run.
+    """
+    return (row.get("channel"), row.get("ts"), row.get("sender"),
+            row.get("subject") or "")
+
+
+def existing_keys() -> tuple[set[str], set[tuple]]:
+    """Hashes and identities already on disk."""
+    hashes: set[str] = set()
+    ids: set[tuple] = set()
     if not OUT.exists():
-        return seen
+        return hashes, ids
     for line in OUT.read_text(encoding="utf-8").splitlines():
         if not line.strip():
             continue
         try:
-            seen.add(json.loads(line)["hash"])
-        except (json.JSONDecodeError, KeyError):
+            row = json.loads(line)
+        except json.JSONDecodeError:
             continue
-    return seen
+        if row.get("hash"):
+            hashes.add(row["hash"])
+        ids.add(identity(row))
+    return hashes, ids
 
 
 def digest(kind: str, ts: str, sender: str, body: str) -> str:
@@ -337,7 +360,7 @@ def run(rescan: bool = False) -> dict:
     """
     cfg = load_cfg()
     cur = {"sms": EPOCH, "mail": EPOCH} if rescan else load_cursor()
-    seen = existing_hashes()
+    seen, seen_ids = existing_keys()
     sms, sms_ts, sms_fail = collect_sms(cfg, cur.get("sms") or EPOCH)
     mail, mail_ts, mail_fail = collect_mail(cfg, cur.get("mail") or EPOCH)
     added = 0
@@ -348,9 +371,11 @@ def run(rescan: bool = False) -> dict:
             # every hash and re-collects the entire history as duplicates.
             h = digest(row["channel"], row.get("ts") or "", row.get("sender") or "",
                        row.pop("_full_text", None) or row.get("text") or "")
-            if h in seen:
+            ident = identity(row)
+            if h in seen or ident in seen_ids:
                 continue
             row["hash"] = h
+            seen_ids.add(ident)
             row["collected_at"] = datetime.now().isoformat(timespec="seconds")
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
             seen.add(h)

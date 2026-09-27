@@ -52,3 +52,26 @@ def test_strip_html_decodes_common_entities() -> None:
     from smsledger.collect import strip_html
 
     assert strip_html("<p>A&nbsp;&amp;&nbsp;B</p>") == "A & B"
+
+
+def test_identity_is_independent_of_body_processing() -> None:
+    """Raising the body limit must not turn history into a second copy of itself.
+
+    This is the regression for a real incident: changing how mail bodies were
+    truncated changed every content hash, so a rescan silently added 187 duplicate
+    rows -- and because the new hashes were all distinct, nothing looked wrong.
+    """
+    from smsledger.collect import identity
+
+    row_short = {"channel": "mail", "ts": "2026-09-22 08:15:40",
+                 "sender": "alerts@example.com", "subject": "Transaction",
+                 "text": "A" * 500}
+    row_long = dict(row_short, text="A" * 8000)
+    assert identity(row_short) == identity(row_long)
+
+
+def test_identity_separates_different_senders() -> None:
+    from smsledger.collect import identity
+
+    base = {"channel": "sms", "ts": "2026-09-22 08:15:40", "subject": ""}
+    assert identity({**base, "sender": "+1"}) != identity({**base, "sender": "+2"})
