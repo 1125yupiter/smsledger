@@ -33,12 +33,13 @@ OUT = STREAM / "notifications.jsonl"
 MAIL_INDEX = Path.home() / "Library/Mail/V10/MailData/Envelope Index"
 MAIL_ROOT = Path.home() / "Library/Mail/V10"
 CHAT_DB = Path.home() / "Library/Messages/chat.db"
+EPOCH = "2001-01-01 00:00:00"   # Apple epoch; earlier than any message
 AMT_RE = re.compile(r"([0-9,]+)\s*원")
 
 
 def load_cursor() -> dict:
     if not CURSOR.exists():
-        return {"sms": "2001-01-01 00:00:00", "mail": "2001-01-01 00:00:00"}
+        return {"sms": EPOCH, "mail": EPOCH}
     return json.loads(CURSOR.read_text(encoding="utf-8"))
 
 
@@ -326,12 +327,19 @@ def collect_mail(cfg: dict, since: str) -> tuple[list[dict], str, int]:
     return rows, latest, fail
 
 
-def run() -> dict:
+def run(rescan: bool = False) -> dict:
+    """Collect new notices. With ``rescan``, ignore the cursor and sweep everything.
+
+    A rescan is safe to run any time: rows are deduplicated by content hash, so
+    re-reading history adds nothing new. It exists because the cursor only moves
+    forward while phones sync old messages late -- anything that landed behind the
+    cursor would otherwise never be collected at all.
+    """
     cfg = load_cfg()
-    cur = load_cursor()
+    cur = {"sms": EPOCH, "mail": EPOCH} if rescan else load_cursor()
     seen = existing_hashes()
-    sms, sms_ts, sms_fail = collect_sms(cfg, cur.get("sms") or "2001-01-01 00:00:00")
-    mail, mail_ts, mail_fail = collect_mail(cfg, cur.get("mail") or "2001-01-01 00:00:00")
+    sms, sms_ts, sms_fail = collect_sms(cfg, cur.get("sms") or EPOCH)
+    mail, mail_ts, mail_fail = collect_mail(cfg, cur.get("mail") or EPOCH)
     added = 0
     STREAM.mkdir(parents=True, exist_ok=True)
     with OUT.open("a", encoding="utf-8") as f:
@@ -356,8 +364,10 @@ def run() -> dict:
 
 
 def main() -> None:
-    argparse.ArgumentParser().parse_args()
-    run()
+    ap = argparse.ArgumentParser(description="Collect notices from Messages and Apple Mail")
+    ap.add_argument("--rescan", action="store_true",
+                    help="ignore the cursor and sweep everything (safe; deduplicated by hash)")
+    run(rescan=ap.parse_args().rescan)
 
 
 if __name__ == "__main__":
