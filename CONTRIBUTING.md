@@ -190,6 +190,36 @@ If you are adding to it, the rule is the one printed at the top of its output:
 (`test_support_report_carries_no_money_data`) plants known values in a fake home and
 asserts none of them reach the file. Extend that test alongside any new section.
 
+## Cutting a release
+
+The version lives in exactly one place: `__version__` in `src/smsledger/__init__.py`.
+`pyproject.toml` reads it from there, and `tests/test_version.py` fails if a second
+declaration ever appears. Nothing else needs editing -- the install line in the README
+names no version on purpose.
+
+```bash
+# 1. Bump the one number, then prove the tree is releasable.
+pytest && python -m pyflakes src tests
+
+# 2. Build from a clean tree; the version in the filenames is the one you just set.
+rm -rf dist build src/smsledger.egg-info
+python -m build
+python -m twine check dist/*
+
+# 3. Rehearse on TestPyPI, then install it somewhere that is not this repository.
+python -m twine upload --repository testpypi dist/*
+
+# 4. Only then the real one. A version number cannot be uploaded twice, so a
+#    mistake here costs a version, not a minute.
+python -m twine upload dist/*
+git tag -a "v$(python -c 'import smsledger; print(smsledger.__version__)')" -m "release"
+git push --tags
+```
+
+Step 3 is not ceremony. Both release-blocking defects this project has found -- package
+data that existed only in a checkout, console scripts that were not on PATH -- were
+invisible inside the repository and visible in a clean install within seconds.
+
 ## Not accepted
 
 - Code that fetches data by logging in, scraping, or calling an open-banking API. Not doing
