@@ -117,3 +117,51 @@ def test_no_copy_of_the_messages_database_is_left_behind(tmp_path, monkeypatch) 
         assert not (shared / stale).exists(), f"{stale} came back"
 
 
+def _emlx(path: Path, frm: str, html: str) -> None:
+    raw = ("From: %s\r\nTo: reader@example.com\r\nSubject: Account alert\r\n"
+           "Date: Mon, 5 Oct 2026 15:20:00 +0900\r\nMIME-Version: 1.0\r\n"
+           "Content-Type: text/html; charset=utf-8\r\n\r\n%s\r\n" % (frm, html))
+    body = raw.encode("utf-8")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(str(len(body)).encode() + b"\n" + body)
+
+
+CONFIGURED = {"mail": [{"id": "known", "address": "known@invented.example",
+                        "kind": "hana_alert"}], "sms": []}
+
+
+def test_a_bank_that_only_writes_by_email_is_still_reported(tmp_path, monkeypatch) -> None:
+    """Otherwise the answer is "none" and the meaning is "nobody looked".
+
+    Whether a reader's bank reaches this tool is read off one section of the support
+    file. That section scanned ``chat.db`` alone, so a US issuer that writes by email
+    -- which is most of them -- came back as no unsupported senders at all. A question
+    that returns confidently wrong is worse than one that returns unanswered.
+    """
+    from smsledger import collect, doctor
+
+    root = tmp_path / "Library/Mail/V10"
+    monkeypatch.setattr(collect, "MAIL_ROOT", root)
+    monkeypatch.setattr(doctor, "MAIL_ROOT", root)
+    box = root / "INBOX.mbox/Data/1/Messages"
+    for i in range(3):
+        _emlx(box / f"{i}.emlx", "Invented Bank <alerts@invented-bank.example>",
+              "<html><body><p>A charge of $1,204.50 at TEST FURNITURE posted to your "
+              "account ending 4321.</p></body></html>")
+    # Configured senders are not news, and marketing that quotes a price is not either.
+    # A display name outside ASCII arrives as a Header object, not a string, and
+    # handing that straight to `re` is how the whole check died on the first Mac
+    # that had one.
+    _emlx(box / "9.emlx", "테스트은행 <known@invented.example>",
+          "<html><body><p>출금45,000원</p></body></html>")
+    _emlx(box / "8.emlx", "Shop <deals@invented-shop.example>",
+          "<html><body><p>Everything $19.99 today. Unsubscribe here.</p></body></html>")
+
+    found = doctor.scan_mail(CONFIGURED, days=90)
+    assert set(found) == {"alerts@invented-bank.example"}, found
+    rec = found["alerts@invented-bank.example"]
+    assert rec["money"] == 3 and rec["channel"] == "mail"
+
+    # And it survives the merge the screen and the support file both read.
+    loud, _quiet = doctor.unknown_senders({"unknown": {}}, CONFIGURED, days=90)
+    assert "alerts@invented-bank.example" in loud

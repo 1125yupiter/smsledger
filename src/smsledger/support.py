@@ -148,12 +148,16 @@ def _config_shape() -> dict:
 
 
 def _unknown_senders(days: int) -> dict:
-    """Senders of transaction-shaped messages with no parser.
+    """Senders of transaction-shaped notices with no parser, in *both* channels.
 
-    The sender is included because it is what a fix needs, and bank shortcodes are
-    public. **No sample text** -- which is what doctor shows on screen and what must
-    not travel. If a personal number appears here, the file is readable and it can be
-    deleted before sending.
+    The sender is included because it is what a fix needs, and bank shortcodes and
+    issuer mail domains are public. **No sample text** -- which is what doctor shows
+    on screen and what must not travel. If a personal number or address appears
+    here, the file is readable and it can be deleted before sending.
+
+    This used to scan messages only. Whether a bank reaches this tool at all is read
+    off this section, so on a Mac whose issuer writes by email it answered "none"
+    and meant "not looked at".
     """
     from . import doctor
 
@@ -161,9 +165,8 @@ def _unknown_senders(days: int) -> dict:
         cfg = json.loads((CONFIG / "sources.json").read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return {}
-    scan = doctor.scan_messages(cfg, days)
-    return {s: v["money"] for s, v in (scan.get("unknown") or {}).items()
-            if v["money"] >= doctor.MIN_HITS}
+    loud, _quiet = doctor.unknown_senders(doctor.scan_messages(cfg, days), cfg, days)
+    return {s: (v["money"], v.get("channel", "sms")) for s, v in loud.items()}
 
 
 def build(days: int = 90) -> str:
@@ -215,8 +218,8 @@ def build(days: int = 90) -> str:
     unknown = _unknown_senders(days)
     lines += ["", f"SENDERS WITH NO PARSER (last {days} days)"]
     if unknown:
-        for sender, n in sorted(unknown.items(), key=lambda kv: -kv[1]):
-            lines.append(f"  {sender}   {n} messages")
+        for sender, (n, channel) in sorted(unknown.items(), key=lambda kv: kv[0]):
+            lines.append(f"  {sender:<34} {n} notices by {channel}")
     else:
         lines.append("  none")
 

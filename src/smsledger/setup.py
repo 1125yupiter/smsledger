@@ -108,8 +108,7 @@ def report_unknown(home: Path) -> None:
     cfg = json.loads((home / "config" / "sources.json").read_text(encoding="utf-8"))
     scan = doctor.scan_messages(cfg, 90)
     known = sum((scan.get("known") or {}).values())
-    unknown = {k: v for k, v in (scan.get("unknown") or {}).items()
-               if v["money"] >= doctor.MIN_HITS}
+    unknown, _quiet = doctor.unknown_senders(scan, cfg, 90)
     print("  " + _("arrivals.recognised", count=known))
     if unknown:
         total = sum(v["money"] for v in unknown.values())

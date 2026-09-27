@@ -279,8 +279,11 @@ def test_doctor_speaks_korean_all_the_way_down(capsys) -> None:
         set_language("ko")
         doctor.check_sync("")
         doctor.check_coverage({"known": {}}, days=90)
-        doctor.check_unknown({"unknown": {"1500-0000": {"money": 4, "sample": "made up"}}},
-                             days=90, min_hits=1)
+        doctor.check_unknown(
+            {"1500-0000": {"money": 4, "sample": "made up", "channel": "sms"},
+             "alerts@invented.example": {"money": 3, "sample": "also made up",
+                                         "channel": "mail"}},
+            dropped=0, days=90)
         out = capsys.readouterr().out
     finally:
         set_language(None)
@@ -290,3 +293,5 @@ def test_doctor_speaks_korean_all_the_way_down(capsys) -> None:
         assert english not in out, f"still English: {english!r}"
     assert "doctor." not in out and "arrivals." not in out
     assert "폰에서 오고 있나" in out and "예: made up" in out
+    # A mail sender is told where to put it -- "mail", not "sms".
+    assert '"mail" 에 넣어요' in out and '"sms" 에 넣어요' in out

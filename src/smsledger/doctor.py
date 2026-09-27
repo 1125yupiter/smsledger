@@ -14,13 +14,16 @@ with the exact config line to add.
 from __future__ import annotations
 
 import argparse
+import email
 import json
 import re
 import sqlite3
+import time
 from collections import Counter, defaultdict
 from pathlib import Path
 
-from .collect import CHAT_DB, MAIL_ROOT, match_sender, scratch_copy
+from .collect import (CHAT_DB, MAIL_ROOT, hdr_decode, match_sender, scratch_copy,
+                      strip_html)
 from .config import sources as load_cfg
 from .i18n import cells
 from .i18n import t as _
@@ -118,6 +121,94 @@ def _group_senders(tmp: Path, cfg: dict, days: int) -> dict:
     return {"known": known, "unknown": unknown, "newest": newest}
 
 
+# How much of a mail file to look at when spotting candidates. Enough for any
+# header block plus a transaction line; not enough to make a scan of a large
+# mailbox expensive. Parsing, which needs the whole body, is collect's job.
+MAIL_PEEK = 256 * 1024
+
+
+def scan_mail(cfg: dict, days: int) -> dict[str, dict]:
+    """Mail senders that look financial and are not in the configuration.
+
+    This exists because the answer to "does my bank reach this tool" was being
+    read off a scan of ``chat.db`` alone. On a Mac whose bank only ever writes by
+    email -- which is most of the United States -- the diagnostic file therefore
+    said "no unsupported senders" and meant "nobody looked". A question that comes
+    back confidently wrong is worse than one that comes back unanswered, and this
+    was the one question the file was being sent to answer.
+    """
+    allow = {(m.get("address") or "").lower() for m in cfg.get("mail") or []}
+    found: dict[str, dict] = defaultdict(
+        lambda: {"total": 0, "money": 0, "sample": "", "channel": "mail"})
+    try:
+        list(MAIL_ROOT.iterdir())
+    except OSError:
+        return {}
+    cutoff = time.time() - days * 86400
+    for path in MAIL_ROOT.rglob("*.emlx"):
+        try:
+            if path.stat().st_mtime < cutoff:
+                continue
+            with path.open("rb") as fh:
+                fh.readline()          # the .emlx byte count, not part of the message
+                raw = fh.read(MAIL_PEEK)
+        except OSError:
+            continue
+        try:
+            msg = email.message_from_bytes(raw)
+            # Not ``msg.get("From")``: a non-ASCII display name comes back as a
+            # Header object, and handing that to ``re`` raises.
+            frm = hdr_decode(msg.get("From"))
+        except Exception:
+            continue
+        m = re.search(r"[\w.+-]+@[\w.-]+", frm)
+        if not m:
+            continue
+        addr = m.group(0).lower()
+        if addr in allow:
+            continue
+        body = _mail_text(msg)
+        if not MONEY.search(body) or PROMO.search(body):
+            continue
+        rec = found[addr]
+        rec["total"] += 1
+        rec["money"] += 1
+        if not rec["sample"]:
+            rec["sample"] = body[:60]
+    return dict(found)
+
+
+def _mail_text(msg) -> str:
+    text = ""
+    for part in msg.walk():
+        if part.get_content_type() not in ("text/plain", "text/html"):
+            continue
+        try:
+            payload = part.get_payload(decode=True) or b""
+            text += payload.decode(part.get_content_charset() or "utf-8", "ignore")
+        except Exception:
+            continue
+    return strip_html(text)
+
+
+def unknown_senders(scan: dict, cfg: dict, days: int,
+                    min_hits: int = MIN_HITS) -> tuple[dict, int]:
+    """Both channels, one answer: the loud senders and the count of one-off noise.
+
+    The screen, ``setup`` and the support file all read this. Three readers asking
+    the same question three ways is how one of them ends up looking at half the
+    evidence without anyone noticing -- which is exactly what happened: the support
+    file scanned messages only, so a mail-only bank came back as "none".
+    """
+    everything = dict(scan.get("unknown") or {})
+    for rec in everything.values():
+        rec.setdefault("channel", "sms")
+    everything.update(scan_mail(cfg, days))
+    loud = {k: v for k, v in everything.items() if v["money"] >= min_hits}
+    quiet = sum(v["money"] for k, v in everything.items() if k not in loud)
+    return loud, quiet
+
+
 def check_sync(newest: str) -> None:
     print("\n" + _("doctor.sync.h"))
     if not newest:
@@ -140,12 +231,13 @@ def check_coverage(scan: dict, days: int) -> None:
         _line(WARN, f"{kind}: {_('doctor.coverage.idle')}")
 
 
-def check_unknown(scan: dict, days: int, min_hits: int = MIN_HITS) -> int:
-    """The important one: money-shaped messages from senders with no parser."""
+def check_unknown(unknown: dict, dropped: int, days: int) -> int:
+    """The important one: money-shaped notices from senders with no parser.
+
+    Both channels. A US card issuer that writes by email has to appear here, or the
+    one thing a reader is asked to send back cannot say whether it arrived.
+    """
     print("\n" + _("doctor.unknown.h", days=days))
-    noisy = scan.get("unknown") or {}
-    unknown = {k: v for k, v in noisy.items() if v["money"] >= min_hits}
-    dropped = sum(v["money"] for k, v in noisy.items() if k not in unknown)
     if not unknown:
         _line(OK, _("doctor.unknown.none"))
         if dropped:
@@ -159,10 +251,14 @@ def check_unknown(scan: dict, days: int, min_hits: int = MIN_HITS) -> int:
     print()
     for sender, v in sorted(unknown.items(), key=lambda kv: -kv[1]["money"]):
         print(f"      {sender}   {_('doctor.unknown.count', count=v['money'])}")
-        # your own message -- redact before sharing
+        # your own notice -- redact before sharing
         print(f"      {_('doctor.unknown.sample', text=v['sample'])}")
-        snippet = '{ "id": "...", "sender": "%s", "kind": "..." }' % sender
-        print(f"      {_('doctor.unknown.add', snippet=snippet)}")
+        if v.get("channel") == "mail":
+            snippet = '{ "id": "...", "address": "%s", "kind": "..." }' % sender
+            print(f"      {_('doctor.unknown.add.mail', snippet=snippet)}")
+        else:
+            snippet = '{ "id": "...", "sender": "%s", "kind": "..." }' % sender
+            print(f"      {_('doctor.unknown.add', snippet=snippet)}")
         print(f"      {_('doctor.unknown.write')}")
         print()
     return total
@@ -266,7 +362,8 @@ def run(days: int = 90, min_hits: int = MIN_HITS) -> int:
     scan = scan_messages(cfg, days)
     check_sync(scan.get("newest") or "")
     check_coverage(scan, days)
-    unknown = check_unknown(scan, days, min_hits)
+    loud, quiet = unknown_senders(scan, cfg, days, min_hits)
+    unknown = check_unknown(loud, quiet, days)
     check_gaps(cfg, days)
     check_mail_truncation()
     print()
