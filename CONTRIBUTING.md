@@ -140,7 +140,15 @@ Sender numbers are public information. **Do not put your own account tail or lim
 pytest
 ```
 
-`test_every_registered_kind_has_a_fixture` blocks a parser that ships without one.
+`test_every_registered_kind_has_a_fixture` blocks a parser that ships without one, and
+`test_every_parsed_mail_sender_has_a_mail_fixture` does the same for the mail path.
+
+Opening a pull request runs the same suite on the Python that ships with macOS **and** on the
+newest one, plus a clean install into an empty virtualenv. Read
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) before trusting the tick: its header says
+in full what a green run does and does not prove. Briefly — a runner has no Messages database
+and no Apple Mail, so every path that reads real notices is unreachable there, and your parser
+is only ever exercised against your fixture.
 
 ## Adding a language
 

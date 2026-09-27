@@ -1,5 +1,7 @@
 # smsledger
 
+[![CI](https://github.com/1125yupiter/smsledger/actions/workflows/ci.yml/badge.svg)](https://github.com/1125yupiter/smsledger/actions/workflows/ci.yml)
+
 Turn bank and card notification messages into ledger rows — **without logging in anywhere.**
 
 Reads only the SMS and email that already arrived on your Mac.
