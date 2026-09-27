@@ -75,3 +75,45 @@ def test_everything_in_one_process_agrees_on_where_home_is(tmp_path: Path) -> No
         assert seen[key].startswith(str(home)), (key, seen[key])
 
 
+def _fake_chat_db(path: Path) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    con = sqlite3.connect(path)
+    con.executescript(
+        "create table handle (ROWID integer primary key, id text);"
+        "create table message (ROWID integer primary key, date integer, text text,"
+        " attributedBody blob, is_from_me integer, handle_id integer);")
+    con.commit()
+    con.close()
+    return path
+
+
+def test_no_copy_of_the_messages_database_is_left_behind(tmp_path, monkeypatch) -> None:
+    """And it is never put somewhere another account can read it.
+
+    ``collect`` copied ``chat.db`` to a fixed ``/tmp`` name and deleted nothing: on
+    this Mac that was 98 MB of message text, plus a journal, sitting in a
+    world-readable directory after every run. The cleanup that was written covered
+    one of the four readers and missed the one the scheduled agent invokes.
+    """
+    from smsledger import collect
+
+    src = _fake_chat_db(tmp_path / "chat.db")
+    monkeypatch.setattr(collect, "CHAT_DB", src)
+    shared = Path(tempfile.gettempdir())
+
+    with collect.scratch_copy(src) as copy:
+        assert copy is not None and copy.exists()
+        holder = copy.parent
+        # Only this account may look at it.
+        assert holder.stat().st_mode & 0o077 == 0, oct(holder.stat().st_mode)
+
+    assert not copy.exists(), "the working copy outlived the read"
+    assert not holder.exists(), "the directory holding it outlived the read"
+    for suffix in ("", "-wal", "-shm"):
+        assert not Path(str(copy) + suffix).exists()
+    # The old fixed names, which two readers on one Mac would have fought over.
+    for stale in ("krsms-chat.db", "smsledger-doctor.db", "smsledger-setup.db",
+                  "smsledger-support.db"):
+        assert not (shared / stale).exists(), f"{stale} came back"
+
+

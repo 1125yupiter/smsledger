@@ -29,8 +29,12 @@
 #     tests pin the interface explicitly; automatic detection via
 #     `defaults read -g AppleLocale` is therefore only observed here, not asserted.
 #     The step that prints it exists so the next person can see what the runner answers.
-#   - The scratch copy still goes to a fixed /tmp path. A runner is a fresh machine
-#     each job, so collisions cannot surface here. That gap is real and lives on a Mac.
+#   - The first run itself. `setup` needs a Messages database to get past step 1, so
+#     a runner never reaches the screen a new reader actually sees. Three defects
+#     lived there behind a green tick, all of them invisible both here and on the
+#     author's Mac, which has SMSLEDGER_HOME set. tests/test_first_run.py holds that
+#     ground now, but it holds it by construction, not by running setup for real.
+#     The one thing that answers this is a Mac belonging to somebody else.
 #
 # No `schedule:` trigger, on purpose. A nightly run mails its failure at night, and
 # nobody is awake to act on it. Failures arrive while the change is being made.

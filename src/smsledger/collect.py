@@ -21,6 +21,8 @@ import json
 import re
 import shutil
 import sqlite3
+import tempfile
+from contextlib import contextmanager
 from datetime import datetime
 from email.header import decode_header
 from pathlib import Path
@@ -99,6 +101,31 @@ def deny(what: str) -> None:
     """
     print(f"!! No permission to read {what}. Collection has stopped.")
     print("   Grant Full Disk Access: System Settings > Privacy & Security.")
+
+
+@contextmanager
+def scratch_copy(src: Path):
+    """Yield a private, short-lived copy of a sqlite database, or ``None``.
+
+    Reading ``chat.db`` in place is not safe while Messages is writing to it, so
+    every reader works on a copy. Where that copy goes is a privacy decision, and
+    a fixed ``/tmp`` name got it wrong three ways at once:
+
+    - ``/tmp`` is world-readable, so the copy was every local account's copy too.
+      ``chat.db`` here is 98 MB of message text.
+    - Nothing deleted it. The cleanup that was added covered one of the four
+      readers, and the one it missed -- ``collect`` -- is the one a scheduled agent
+      runs every six hours.
+    - A fixed name collides. Two users on one Mac fight over the same file, and
+      whoever loses reads someone else's messages or a half-written database.
+
+    ``mkdtemp`` answers all three: 0700, unique, and removed here whatever happens.
+    """
+    tmp = Path(tempfile.mkdtemp(prefix="smsledger-"))
+    try:
+        yield copy_sqlite(src, tmp / "copy.db")
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
 
 
 def copy_sqlite(src: Path, dest: Path) -> Path | None:
@@ -225,13 +252,17 @@ def match_sender(handle: str, senders: dict[str, dict]) -> dict | None:
 
 def collect_sms(cfg: dict, since: str) -> tuple[list[dict], str, int]:
     senders = {s["sender"]: s for s in cfg.get("sms") or []}
-    tmp = Path("/tmp/krsms-chat.db")
-    if not copy_sqlite(CHAT_DB, tmp):
-        return [], since, 0
-    try:
-        con = sqlite3.connect(f"file:{tmp}?mode=ro", uri=True)
-    except sqlite3.Error:
-        return [], since, 0
+    with scratch_copy(CHAT_DB) as tmp:
+        if tmp is None:
+            return [], since, 0
+        try:
+            con = sqlite3.connect(f"file:{tmp}?mode=ro", uri=True)
+        except sqlite3.Error:
+            return [], since, 0
+        return _read_sms(con, senders, since)
+
+
+def _read_sms(con, senders: dict, since: str) -> tuple[list[dict], str, int]:
     q = """
     select h.id,
            datetime(m.date/1000000000 + strftime('%s','2001-01-01'),'unixepoch','localtime') as ts,

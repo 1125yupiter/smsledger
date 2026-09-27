@@ -92,13 +92,12 @@ def _counts() -> dict:
 
 
 def _permissions() -> dict:
-    from .collect import CHAT_DB, MAIL_ROOT, copy_sqlite
+    from .collect import CHAT_DB, MAIL_ROOT, scratch_copy
 
-    tmp = Path("/tmp/smsledger-support.db")
     messages = "missing"
     if CHAT_DB.exists():
-        messages = "readable" if copy_sqlite(CHAT_DB, tmp) else "blocked"
-        tmp.unlink(missing_ok=True)
+        with scratch_copy(CHAT_DB) as tmp:
+            messages = "readable" if tmp else "blocked"
     try:
         list(MAIL_ROOT.iterdir())
         mail = "readable"

@@ -20,7 +20,7 @@ import sqlite3
 from collections import Counter, defaultdict
 from pathlib import Path
 
-from .collect import CHAT_DB, MAIL_ROOT, copy_sqlite, match_sender
+from .collect import CHAT_DB, MAIL_ROOT, match_sender, scratch_copy
 from .config import sources as load_cfg
 from .i18n import cells
 from .i18n import t as _
@@ -47,22 +47,6 @@ MIN_HITS = 3
 OK, WARN, BAD = "✓", "!", "✗"
 
 
-SCRATCH = Path("/tmp/smsledger-doctor.db")
-
-
-def _discard(tmp: Path) -> None:
-    """Delete the working copy *and its journal*.
-
-    ``copy_sqlite`` brings the ``-wal`` and ``-shm`` sidecars across, because
-    without them the newest messages are invisible. Deleting only the ``.db``
-    left a two-megabyte write-ahead log -- containing message text -- lying in
-    ``/tmp`` after every run, and the next read paired a fresh database with that
-    stale journal and reported it as malformed.
-    """
-    for suffix in ("", "-wal", "-shm"):
-        Path(str(tmp) + suffix).unlink(missing_ok=True)
-
-
 def _line(mark: str, text: str) -> None:
     print(f"  {mark} {text}")
 
@@ -74,13 +58,12 @@ def check_paths() -> bool:
         _line(BAD, _("doctor.access.nodb", path=CHAT_DB))
         ok = False
     else:
-        tmp = SCRATCH
-        if copy_sqlite(CHAT_DB, tmp) is None:
-            _line(BAD, _("doctor.access.blocked"))
-            ok = False
-        else:
-            _line(OK, _("doctor.access.ok"))
-            _discard(tmp)
+        with scratch_copy(CHAT_DB) as tmp:
+            if tmp is None:
+                _line(BAD, _("doctor.access.blocked"))
+                ok = False
+            else:
+                _line(OK, _("doctor.access.ok"))
     try:
         list(MAIL_ROOT.iterdir())
         _line(OK, _("doctor.access.mail.ok", path=MAIL_ROOT))
@@ -94,9 +77,13 @@ def check_paths() -> bool:
 
 def scan_messages(cfg: dict, days: int) -> dict:
     """Group recent inbound messages by sender, flagging the money-shaped ones."""
-    tmp = SCRATCH
-    if copy_sqlite(CHAT_DB, tmp) is None:
-        return {}
+    with scratch_copy(CHAT_DB) as tmp:
+        if tmp is None:
+            return {}
+        return _group_senders(tmp, cfg, days)
+
+
+def _group_senders(tmp: Path, cfg: dict, days: int) -> dict:
     senders = {s["sender"]: s for s in cfg.get("sms") or []}
     known: Counter = Counter()
     unknown: dict[str, dict] = defaultdict(lambda: {"total": 0, "money": 0, "sample": ""})
@@ -128,8 +115,6 @@ def scan_messages(cfg: dict, days: int) -> dict:
                 rec["sample"] = re.sub(r"\s+", " ", body)[:60]
     except sqlite3.Error as exc:
         _line(WARN, _("doctor.scan.failed", error=exc))
-    finally:
-        _discard(tmp)
     return {"known": known, "unknown": unknown, "newest": newest}
 
 
@@ -183,6 +168,29 @@ def check_unknown(scan: dict, days: int, min_hits: int = MIN_HITS) -> int:
     return total
 
 
+def _count_behind(senders: dict, since: str) -> int | None:
+    """How many recognised messages sit behind the cursor. ``None`` if unreadable."""
+    with scratch_copy(CHAT_DB) as tmp:
+        if tmp is None:
+            return None
+        behind = 0
+        try:
+            con = sqlite3.connect(f"file:{tmp}?mode=ro", uri=True)
+            q = """
+            select h.id,
+                   datetime(m.date/1000000000 + strftime('%s','2001-01-01'),'unixepoch','localtime') as ts
+            from message m join handle h on m.handle_id = h.ROWID
+            where m.is_from_me = 0
+              and datetime(m.date/1000000000 + strftime('%s','2001-01-01'),'unixepoch','localtime') <= ?
+            """
+            for sender, ts in con.execute(q, (since,)):
+                if match_sender(sender or "", senders):
+                    behind += 1
+        except sqlite3.Error:
+            return None
+        return behind
+
+
 def check_gaps(cfg: dict, days: int) -> None:
     """Cursor only moves forward, so messages synced late are never collected."""
     print("\n" + _("doctor.gaps.h"))
@@ -193,9 +201,6 @@ def check_gaps(cfg: dict, days: int) -> None:
         return
     cur = json.loads(cursor_path.read_text(encoding="utf-8"))
     since = cur.get("sms") or ""
-    tmp = SCRATCH
-    if copy_sqlite(CHAT_DB, tmp) is None:
-        return
     senders = {s["sender"]: s for s in cfg.get("sms") or []}
     collected = set()
     for line in out.read_text(encoding="utf-8").splitlines():
@@ -204,23 +209,9 @@ def check_gaps(cfg: dict, days: int) -> None:
                 collected.add(json.loads(line).get("hash"))
             except json.JSONDecodeError:
                 continue
-    behind = 0
-    try:
-        con = sqlite3.connect(f"file:{tmp}?mode=ro", uri=True)
-        q = """
-        select h.id,
-               datetime(m.date/1000000000 + strftime('%s','2001-01-01'),'unixepoch','localtime') as ts
-        from message m join handle h on m.handle_id = h.ROWID
-        where m.is_from_me = 0
-          and datetime(m.date/1000000000 + strftime('%s','2001-01-01'),'unixepoch','localtime') <= ?
-        """
-        for sender, ts in con.execute(q, (since,)):
-            if match_sender(sender or "", senders):
-                behind += 1
-    except sqlite3.Error:
+    behind = _count_behind(senders, since)
+    if behind is None:
         return
-    finally:
-        _discard(tmp)
     if behind > len(collected):
         for line in wrap(_("doctor.gaps.behind", count=behind - len(collected)),
                          76, first=f"  {WARN} ", rest="    "):

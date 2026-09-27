@@ -39,14 +39,15 @@ def step(n: int, title: str) -> None:
 
 def check_access() -> bool:
     """Full Disk Access is the one thing nobody can work around for you."""
-    from .collect import CHAT_DB, copy_sqlite
+    from .collect import CHAT_DB, scratch_copy
 
-    tmp = Path("/tmp/smsledger-setup.db")
     if not CHAT_DB.exists():
         print("  " + _("access.missing"))
         print("  " + _("access.missing.why"))
         return False
-    if copy_sqlite(CHAT_DB, tmp) is None:
+    with scratch_copy(CHAT_DB) as tmp:
+        readable = tmp is not None
+    if not readable:
         print("  " + _("access.blocked"))
         print()
         for k in ("access.blocked.how1", "access.blocked.how2", "access.blocked.how3"):
@@ -55,7 +56,6 @@ def check_access() -> bool:
         print("  " + _("access.blocked.why"))
         print("  " + _("access.blocked.why2"))
         return False
-    tmp.unlink(missing_ok=True)
     print("  " + _("access.ok"))
     return True
 
