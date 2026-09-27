@@ -29,6 +29,9 @@ from .i18n import language
 from .i18n import t as _
 from .paths import CONFIG, HOME, STREAM
 
+# Where a user sends the diagnostic file. One place, so it cannot drift between
+# the README, the setup wizard, an error message and the file's own header.
+SUPPORT_EMAIL = "1125.yupiter@gmail.com"
 ERRORS = HOME / "errors.log"
 
 
@@ -171,6 +174,8 @@ def build(days: int = 90) -> str:
         "smsledger support report",
         f"generated  {datetime.now().isoformat(timespec='seconds')}",
         "",
+        f"send to   {SUPPORT_EMAIL}",
+        "",
         "WHAT IS IN THIS FILE",
         "  versions, permission status, row counts, error traces, and the sender",
         "  addresses of messages that have no parser yet.",
@@ -223,10 +228,36 @@ def build(days: int = 90) -> str:
     return "\n".join(lines)
 
 
+def compose(path: Path, note: str = "") -> None:
+    """Open a mail draft and reveal the file, so attaching it is a drag.
+
+    Mail clients cannot be handed an attachment through a mailto: link -- that is a
+    standing restriction, not an oversight -- so the next best thing is to put the
+    draft and the file in front of someone at the same moment. Asking a
+    non-technical person to navigate to a path is where this otherwise stops.
+    """
+    import urllib.parse
+
+    body = _("support.mail.body", path=path, note=note)
+    url = "mailto:{to}?subject={s}&body={b}".format(
+        to=SUPPORT_EMAIL,
+        s=urllib.parse.quote(_("support.mail.subject", version=__version__)),
+        b=urllib.parse.quote(body),
+    )
+    for cmd in (["open", url], ["open", "-R", str(path)]):
+        try:
+            subprocess.run(cmd, check=False, timeout=10)
+        except (OSError, subprocess.SubprocessError):
+            pass
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="Write a diagnostic file that can be shared")
     ap.add_argument("--days", type=int, default=90)
     ap.add_argument("-o", "--out", help="output path (default $SMSLEDGER_HOME/support.txt)")
+    ap.add_argument("--email", action="store_true",
+                    help="open a mail draft and reveal the file")
+    ap.add_argument("--no-email", action="store_true", help="just write the file")
     a = ap.parse_args()
 
     out = Path(a.out) if a.out else HOME / "support.txt"
@@ -235,6 +266,22 @@ def main() -> None:
     print(_("support.wrote", path=out))
     print("  " + _("support.readfirst"))
     print("  " + _("support.contents"))
+    print("  " + _("support.sendto", email=SUPPORT_EMAIL))
+
+    if a.no_email:
+        return
+    if a.email or _ask_send():
+        compose(out)
+        print("  " + _("support.mail.opened"))
+
+
+def _ask_send() -> bool:
+    try:
+        got = input("  " + _("support.mail.ask") + f" [{_('yes').upper()}/{_('no')}] ").strip().lower()
+    except (EOFError, KeyboardInterrupt):
+        print()
+        return False
+    return (got or _("yes")) in (_("yes"), "y", "yes")
 
 
 if __name__ == "__main__":

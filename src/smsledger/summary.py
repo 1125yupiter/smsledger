@@ -228,12 +228,21 @@ def _guarded(fn, name):
         except SystemExit:
             raise
         except BaseException as exc:
-            from .support import ERRORS, record_error
+            import sys as _sys
+
+            from .support import ERRORS, SUPPORT_EMAIL, record_error
+
             record_error(name, exc)
-            print(f"\n{type(exc).__name__}: {exc}", file=__import__("sys").stderr)
-            print(f"recorded in {ERRORS}", file=__import__("sys").stderr)
-            print("smsledger-support  writes a file you can send for help",
-                  file=__import__("sys").stderr)
+            print(f"\n{type(exc).__name__}: {exc}", file=_sys.stderr)
+            try:
+                from .i18n import t as _t
+
+                print(_t("error.recorded", path=ERRORS), file=_sys.stderr)
+                print(_t("error.hint", email=SUPPORT_EMAIL), file=_sys.stderr)
+            except BaseException:
+                # The error path must never raise an error of its own.
+                print(f"recorded in {ERRORS}", file=_sys.stderr)
+                print(f"smsledger-support -> {SUPPORT_EMAIL}", file=_sys.stderr)
             raise SystemExit(1)
     return wrapper
 

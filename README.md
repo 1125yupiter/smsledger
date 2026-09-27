@@ -75,8 +75,11 @@ smsledger-refresh           # collect, parse and rebuild the report, once
 smsledger-support
 ```
 
-Writes one plain-text file with what is needed to diagnose it. **Open it and read it
-before sending** — it is deliberately readable.
+Writes one plain-text file with what is needed to diagnose it, then offers to open a
+mail draft and show you the file so you can drag it in.
+
+**Send it to [1125.yupiter@gmail.com](mailto:1125.yupiter@gmail.com).** Open it and read it first — it is deliberately
+readable.
 
 | In it | Not in it |
 |---|---|
@@ -86,8 +89,11 @@ before sending** — it is deliberately readable.
 
 That split is enforced by a test, not by a promise on a page.
 
-Failures are appended to `errors.log` in your data folder as they happen, so a
-problem you hit last Tuesday is still answerable today.
+Failures are appended to `errors.log` in your data folder as they happen, so a problem
+you hit last Tuesday is still answerable today — and `smsledger-support` picks them up,
+so **one file is all you need to send.**
+
+Prefer GitHub? Open an issue instead and attach the same file.
 
 To update after a fix ships: `pip3 install -U smsledger`.
 

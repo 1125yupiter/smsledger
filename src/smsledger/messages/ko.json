@@ -113,6 +113,11 @@
   "support.readfirst": "보내기 전에 열어서 한번 읽어 보세요. 그냥 글자 파일이에요.",
   "support.contents": "버전·권한·건수만 들어 있어요. 문자 내용도, 금액도, 이름도 없어요.",
   "error.recorded": "{path} 에 기록해 뒀어요",
-  "error.hint": "smsledger-support 를 실행하면 도움 요청용 파일을 만들어 줘요",
-  "setup.trouble": "나중에 문제가 생기면: smsledger-support 를 실행하면 보낼 파일을 만들어 줘요."
+  "error.hint": "smsledger-support 를 실행하면 {email} 로 보낼 파일을 만들어 줘요",
+  "setup.trouble": "나중에 문제가 생기면 smsledger-support 를 실행하세요. {email} 로 보낼 파일을 만들어 줘요.",
+  "support.sendto": "{email} 로 보내 주세요",
+  "support.mail.ask": "메일 쓰기 창을 지금 열까요?",
+  "support.mail.opened": "메일 창을 열었고, 파일도 Finder 에 띄웠어요. 끌어다 놓으면 첨부돼요.",
+  "support.mail.subject": "smsledger 문제 신고 (v{version})",
+  "support.mail.body": "안녕하세요,\n\n잘 안 되는 게 있어서 보냅니다. 아래에 적고 진단 파일을 첨부했어요.\n\n무엇을 하려고 했나:\n  (한두 줄로 적어 주세요)\n\n대신 어떤 일이 있었나:\n  \n\n---\n지금 Finder 에 떠 있는 이 파일을 끌어다 첨부해 주세요:\n{path}\n\n버전·권한·건수만 들어 있어요. 문자 내용도, 금액도, 이름도 없어요.\n{note}"
 }

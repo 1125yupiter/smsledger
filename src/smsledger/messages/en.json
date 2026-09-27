@@ -113,6 +113,11 @@
   "support.readfirst": "Open it and read it before sending -- it is plain text.",
   "support.contents": "It has versions, permissions and counts. No message text, no amounts, no names.",
   "error.recorded": "recorded in {path}",
-  "error.hint": "smsledger-support  writes a file you can send for help",
-  "setup.trouble": "If anything goes wrong later: smsledger-support writes a file you can send."
+  "error.hint": "smsledger-support writes a file you can send to {email}",
+  "setup.trouble": "If anything goes wrong later, run smsledger-support -- it writes a file to send to {email}.",
+  "support.sendto": "Send it to {email}",
+  "support.mail.ask": "Open a mail draft now?",
+  "support.mail.opened": "Draft opened, and the file is showing in Finder -- drag it in to attach.",
+  "support.mail.subject": "smsledger problem report (v{version})",
+  "support.mail.body": "Hello,\n\nSomething is not working. Details below, and the diagnostic file is attached.\n\nWhat I was doing:\n  (please describe in a line or two)\n\nWhat happened instead:\n  \n\n---\nPlease attach this file -- it is showing in Finder now:\n{path}\n\nIt contains versions, permissions and counts only. No message text, no amounts, no names.\n{note}"
 }
