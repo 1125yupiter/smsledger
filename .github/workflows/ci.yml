@@ -66,14 +66,28 @@ jobs:
           python-version: ${{ matrix.python }}
       - run: python -VV
       - name: What does this runner say its locale is
-        # Observation, not a check. macOS leaves LANG unset, so the tool asks the OS
-        # directly; a runner may answer anything or nothing, and the tool must fall
-        # back to English rather than fail either way.
+        # macOS leaves LANG unset, so the tool asks the OS directly. A runner answers
+        # en_US (checked below); a reader's Mac may answer ko_KR, and that case is the
+        # one CI structurally cannot reach.
         run: defaults read -g AppleLocale || echo "(no AppleLocale on this runner)"
       - run: python -m pip install --upgrade pip
       - run: python -m pip install -e ".[dev]"
       - name: Test suite
         run: python -m pytest tests/ -q
+      - name: The locale the OS reports reaches the interface
+        # Without this, the previous step only prints something nobody reads. The
+        # assertion is on the mechanism, not on English: `_from_macos` must come back
+        # with an answer, because if it silently returns "" the tool still says "en" --
+        # by falling all the way through -- and a Korean Mac would get English with
+        # every test still green. That was the bug this path exists to prevent.
+        run: |
+          python - <<'PY'
+          from smsledger import i18n
+          reported = i18n._from_macos()
+          assert reported, "the OS reported no locale at all; detection is dead"
+          assert i18n.detect() == "en", (reported, i18n.detect())
+          print("runner reports", reported, "-> interface", i18n.detect())
+          PY
       - name: The interface is the reader's language, in a real run
         # These two drive summary and doctor with invented rows and read the output
         # back. A string catalogue can be complete while the code still prints an
