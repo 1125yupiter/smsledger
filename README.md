@@ -17,7 +17,7 @@ Built and verified against **6,249 real notices**.
 Open Terminal (⌘Space, type `terminal`) and paste these two lines, one at a time:
 
 ```bash
-pip3 install "git+https://github.com/1125yupiter/smsledger"
+pip3 install smsledger
 python3 -m smsledger setup
 ```
 
@@ -106,8 +106,7 @@ so **one file is all you need to send.**
 
 Prefer GitHub? Open an issue instead and attach the same file.
 
-To update after a fix ships:
-`pip3 install -U --force-reinstall "git+https://github.com/1125yupiter/smsledger"`.
+To update after a fix ships: `pip3 install -U smsledger`.
 
 ## What it handles
 
@@ -212,9 +211,13 @@ These are promises, not implementation details.
 3. **Loud failure over quiet emptiness.** Missing permission stops with a message. Returning an
    empty list silently is the failure that costs weeks.
 
-## Tests
+## Working on it
+
+Install the current `main` rather than the last release, and run the suite:
 
 ```bash
+pip3 install "git+https://github.com/1125yupiter/smsledger"   # unreleased code
+git clone https://github.com/1125yupiter/smsledger && cd smsledger
 pip install -e ".[dev]" && pytest
 ```
 

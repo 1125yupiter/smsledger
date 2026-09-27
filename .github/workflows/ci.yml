@@ -10,6 +10,9 @@
 #     Two release-blocking defects were found that way and only that way (package data
 #     that existed only in a checkout, console scripts that were not on PATH), so it is
 #     a job here rather than a thing to remember.
+#   - The install line printed in the README is the line that was run, it installs from
+#     PyPI, and what PyPI serves is this commit. A version bumped here and not uploaded
+#     is red, because until it is uploaded the page tells people to install older code.
 #   - What is on screen is the reader's language, all the way down, in a real run and
 #     not only in the string catalogues.
 #   - A command that stops because it cannot work prints its sentence and exits 1.
@@ -212,20 +215,35 @@ jobs:
           grep -q "No Messages database" doctor.en.txt
 
   documented-install:
-    # The line README tells a reader to paste, at this exact commit. Only meaningful on
-    # push, because a pull request's head may not be fetchable from this repository.
+    # The line README tells a beginner to paste. It installs the published release, so
+    # what this job proves is "the line on the page works", not "this commit works" --
+    # clean-install above is the job that speaks for the commit. Push only: nothing
+    # here depends on the head of a pull request.
     name: the install line in the README
     if: github.event_name == 'push'
     runs-on: macos-latest
     steps:
+      - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
         with:
           python-version: "3.13"
-      - name: pip install "git+https://github.com/<repo>@<sha>"
+      - name: The README still tells people to paste the line this job runs
+        # Without this the page and the check drift apart silently: README could say
+        # anything at all while CI went on proving some other command.
+        run: grep -qxF 'pip3 install smsledger' README.md
+      - name: pip3 install smsledger
         run: |
           cd "$RUNNER_TEMP"
           python -m venv readme
           readme/bin/python -m pip install --quiet --upgrade pip
-          readme/bin/python -m pip install --quiet \
-            "git+https://github.com/${{ github.repository }}@${{ github.sha }}"
+          readme/bin/python -m pip install --quiet smsledger
           readme/bin/python -m smsledger | grep -q "python3 -m smsledger setup"
+      - name: What is published is this commit, not something older
+        # Bumping __version__ without uploading leaves the README's line installing code
+        # that is not this code. Red until the release goes up, which is the point: the
+        # release steps in CONTRIBUTING.md end with the upload for this reason.
+        run: |
+          published=$(cd "$RUNNER_TEMP" && readme/bin/python -c "import importlib.metadata as m; print(m.version('smsledger'))")
+          here=$(PYTHONPATH=src python -c "import smsledger; print(smsledger.__version__)")
+          echo "PyPI $published / this commit $here"
+          test "$published" = "$here" || { echo "not uploaded yet: $here"; exit 1; }
