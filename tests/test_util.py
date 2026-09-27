@@ -28,3 +28,27 @@ def test_year_for_without_ts_does_not_crash() -> None:
 def test_won(raw, expected) -> None:
     """None, never 0, when an amount cannot be read."""
     assert won(raw) == expected
+
+
+def test_strip_html_drops_style_before_truncation() -> None:
+    """A kilobyte of CSS must not push the amount past the body limit.
+
+    This is the difference between working and not in locales where the
+    transaction only ever arrives by mail.
+    """
+    from smsledger.collect import strip_html
+
+    html = (
+        "<head><style>" + ".x{color:red}" * 200 + "</style></head>"
+        "<body><script>var a=1;</script><p>Transaction: $42.50 at SOME STORE</p></body>"
+    )
+    out = strip_html(html)
+    assert "color:red" not in out
+    assert "var a" not in out
+    assert out.index("$42.50") < 200, out[:80]
+
+
+def test_strip_html_decodes_common_entities() -> None:
+    from smsledger.collect import strip_html
+
+    assert strip_html("<p>A&nbsp;&amp;&nbsp;B</p>") == "A & B"

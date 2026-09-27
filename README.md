@@ -21,18 +21,33 @@ Built and verified against **6,249 real notices**.
 | Corporate cards | Kept under a separate `kind` so they never mix into personal spending. |
 | Points and service notices | Non-transactions are recognised and dropped. |
 
+## Two channels, equally
+
+Notices arrive by **SMS** or by **email**, and which one carries your transactions is a
+setting on your side — the same bank will use either, both, or neither depending on what you
+switched on. Region matters too: Korean issuers lean on SMS, while US issuers default to
+email and make SMS opt-in.
+
+So both channels are first-class here. `collect` reads macOS Messages *and* Apple Mail, and a
+parser does not care which one a body came from.
+
+Email bodies are HTML templates, which is a different problem from a five-line SMS: stylesheets
+and navigation come before anything useful. `strip_html` drops `<style>`/`<script>`/`<head>`
+first, and `mail_body_limit` (default 8000) is generous on purpose — truncating the one line
+that mattered is the expensive mistake.
+
 ## Which countries
 
-Collection is country-neutral — macOS Messages and Apple Mail work the same everywhere.
-**Only the message body parsing is local.**
+Collection is country-neutral. macOS Messages and Apple Mail work the same everywhere;
+**only the parsing of a body is local.**
 
 | Locale | Status |
 |---|---|
-| 🇰🇷 `kr` South Korea | Hyundai Card · Hana Bank · KB Bank · KB corporate card |
+| 🇰🇷 `kr` South Korea | Hyundai Card · Hana Bank · KB Bank · KB corporate card (SMS) |
 | elsewhere | **open** — see [CONTRIBUTING.md](CONTRIBUTING.md) |
 
-Adding your country is **one file plus one config line**. This works best where banks send
-transaction alerts by SMS and you would rather not hand your ledger to an aggregator.
+Adding your country is **one file plus one config line**. Worth doing wherever you would rather
+not hand your bank credentials to an aggregator to get your own transactions back.
 
 ## Requirements
 
@@ -71,7 +86,7 @@ parse_row({"kind": "hyundai_card", "ts": "2026-09-20 13:05:11",
 
 | File | Holds |
 |---|---|
-| `config/sources.json` | sender numbers / email addresses → parser `kind` |
+| `config/sources.json` | sender numbers / email addresses → parser `kind`; `mail_body_limit` |
 | `config/profile.json` | your account and card **tails**, aliases and roles, estimate rates |
 
 **Full account numbers are never accepted.** Notices only carry the tail, so the tail is

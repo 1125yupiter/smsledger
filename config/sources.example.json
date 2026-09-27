@@ -1,4 +1,6 @@
 {
+  "mail_body_limit": 8000,
+  "_note_mail_body_limit": "How much of a mail body to keep. HTML templates push the amount far past the first few hundred characters. Raise it if your issuer's template is large; the dedupe hash uses the untruncated body, so changing this does not re-collect your history.",
   "_note": "Sender -> parser kind. These numbers are the issuers' public contact numbers. To add your bank, add one line here; `kind` must match a parser registered under locales/.",
   "sms": [
     { "id": "hyundai_6200", "sender": "+8215776200", "kind": "hyundai_card", "note": "KR Hyundai Card usage alerts" },

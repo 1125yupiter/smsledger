@@ -123,6 +123,40 @@ def decode_ab(blob: bytes) -> str:
     return blob[k : k + n].decode("utf-8", "ignore")
 
 
+DROP_TAGS = re.compile(r"(?is)<(style|script|head)[^>]*>.*?</\1>")
+TAG = re.compile(r"<[^>]+>")
+
+
+def strip_html(text: str) -> str:
+    """HTML mail body -> flat text.
+
+    Marketing templates put the whole stylesheet and a navigation block before
+    anything that matters. Dropping <style>/<script>/<head> first is what keeps a
+    transaction amount from being pushed past the body limit by a kilobyte of CSS.
+    """
+    out = DROP_TAGS.sub(" ", text or "")
+    out = TAG.sub(" ", out)
+    out = out.replace("&nbsp;", " ").replace("&amp;", "&").replace("&gt;", ">").replace("&lt;", "<")
+    return re.sub(r"\s+", " ", out).strip()
+
+
+def body_limit() -> int:
+    """How much of a mail body to keep.
+
+    Which channel carries the transaction is a per-user setting, not a fact about
+    a country: the same bank will send SMS, email, both or neither depending on
+    what you switched on. And where email is the channel, HTML templates put the
+    amount well past the first few hundred characters -- order emails here run a
+    few thousand characters and up to ~19k.
+
+    So the default is generous. A few kilobytes per row is cheap next to silently
+    truncating the one line that mattered. Parsers needing the whole body (an
+    itemised order table, say) should read the message themselves rather than rely
+    on this.
+    """
+    return int(load_cfg().get("mail_body_limit") or 8000)
+
+
 def amount_of(text: str) -> int | None:
     m = AMT_RE.search(text.replace(" ", ""))
     if not m:
@@ -272,8 +306,7 @@ def collect_mail(cfg: dict, since: str) -> tuple[list[dict], str, int]:
                 text += payload.decode(part.get_content_charset() or "utf-8", "ignore")
             except Exception:
                 fail += 1
-        plain = re.sub(r"<[^>]+>", " ", text)
-        plain = re.sub(r"\s+", " ", plain).strip()
+        plain = strip_html(text)
         if len(plain) < 20:
             fail += 1
         rows.append(
@@ -283,7 +316,8 @@ def collect_mail(cfg: dict, since: str) -> tuple[list[dict], str, int]:
                 "sender": addr,
                 "ts": ts,
                 "subject": hdr_decode(msg.get("Subject")),
-                "text": plain[:500],
+                "text": plain[:body_limit()],
+                "_full_text": plain,
                 "amount": amount_of(plain),
                 "partial": path.name.endswith(".partial.emlx"),
                 "matched": False,
@@ -302,7 +336,10 @@ def run() -> dict:
     STREAM.mkdir(parents=True, exist_ok=True)
     with OUT.open("a", encoding="utf-8") as f:
         for row in sms + mail:
-            h = digest(row["channel"], row.get("ts") or "", row.get("sender") or "", row.get("text") or "")
+            # Hash the untruncated body. Otherwise raising the mail body limit changes
+            # every hash and re-collects the entire history as duplicates.
+            h = digest(row["channel"], row.get("ts") or "", row.get("sender") or "",
+                       row.pop("_full_text", None) or row.get("text") or "")
             if h in seen:
                 continue
             row["hash"] = h

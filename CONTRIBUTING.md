@@ -87,10 +87,36 @@ the test stop representing a real message.
 Minimum set: a normal transaction · a cancellation or an inbound one · a non-transaction notice
 (`skip`).
 
+## 3b. If your transactions arrive by email
+
+Nothing extra is needed — a parser receives a body and does not know the channel. Two things
+differ in practice:
+
+- **Register the sender address, not a number.** Put it under `mail` in `sources.json`.
+- **The body is flattened HTML.** `strip_html` has already removed `<style>`, `<script>` and
+  `<head>` and collapsed whitespace, so you get one long line. Anchor on wording
+  (`"Transaction of"`, `"at"`, `"Available balance"`) rather than on line positions, which is
+  the opposite of how an SMS parser works.
+
+If your issuer's template is unusually large, raise `mail_body_limit` in config. The dedupe
+hash uses the untruncated body, so changing it does not re-collect your history as duplicates.
+
+A parser that needs the *whole* message — an itemised order table, a statement attachment —
+should read the `.emlx` itself rather than widen the limit for everyone.
+
+**Fixtures work the same way.** Save the flattened body (what `strip_html` returns) as the
+`.txt`, not the raw HTML, and fabricate every value in it.
+
 ## 4. One config line — `config/sources.example.json`
 
 ```json
 { "id": "hdfc_sms", "sender": "+911234567890", "kind": "hdfc_alert", "note": "HDFC alerts" }
+```
+
+For an email sender, use the `mail` list and an `address`:
+
+```json
+{ "id": "chase_alerts", "address": "no.reply.alerts@chase.com", "kind": "chase_alert" }
 ```
 
 Sender numbers are public information. **Do not put your own account tail or limits in `note`.**
