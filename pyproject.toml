@@ -18,6 +18,7 @@ dev = ["pytest>=8"]
 smsledger-doctor = "smsledger.doctor:main"
 smsledger-collect = "smsledger.collect:main"
 smsledger-parse = "smsledger.parse:main"
+smsledger-summary = "smsledger.summary:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

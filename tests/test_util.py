@@ -75,3 +75,21 @@ def test_identity_separates_different_senders() -> None:
 
     base = {"channel": "sms", "ts": "2026-09-22 08:15:40", "subject": ""}
     assert identity({**base, "sender": "+1"}) != identity({**base, "sender": "+2"})
+
+
+def test_mask_digits_never_prints_a_full_account_number() -> None:
+    """Parsers keep account numbers on purpose; a screen must not echo them."""
+    from smsledger.summary import mask_digits
+
+    out = mask_digits("98765432109876")
+    assert "98765432109876" not in out
+    assert out.endswith("1105")
+    # short numbers are amounts or dates, leave them alone
+    assert mask_digits("09/20 13:05") == "09/20 13:05"
+
+
+def test_redact_replaces_payee_names_with_positions() -> None:
+    from smsledger.summary import label
+
+    assert label("SOME LANDLORD", 3, redact=True) == "payee 3"
+    assert label("SOME LANDLORD", 3, redact=False) == "SOME LANDLORD"
