@@ -20,6 +20,8 @@
   "access.blocked.how3": "그 앱을 완전히 종료했다가 다시 실행해 주세요.",
   "access.blocked.why": "어느 쪽이든 맥 밖으로 나가는 것은 없어요. 이 권한은 은행이 이미 보낸",
   "access.blocked.why2": "알림을 읽기 위한 것이에요.",
+  "collect.denied": "{what} 를 읽을 권한이 없어요. 여기서 멈췄어요.",
+  "collect.denied.how": "시스템 설정 > 개인정보 보호 및 보안 에서 전체 디스크 접근을 켜고 다시 실행해 주세요.",
   "home.env": "SMSLEDGER_HOME={path} 를 씁니다",
   "home.default": "자료는 {path} 에 둘게요",
   "home.local": "(이 맥에만 있어요. 어디로도 올라가지 않아요)",

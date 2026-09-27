@@ -20,6 +20,8 @@
   "access.blocked.how3": "quit that app completely and run this again.",
   "access.blocked.why": "Nothing leaves your Mac either way -- this permission is what lets",
   "access.blocked.why2": "the tool read the notices your bank already sent you.",
+  "collect.denied": "Cannot read {what} -- no permission. Collection has stopped.",
+  "collect.denied.how": "Grant Full Disk Access in System Settings > Privacy & Security, then run this again.",
   "home.env": "Using SMSLEDGER_HOME={path}",
   "home.default": "Your data will be kept in {path}",
   "home.local": "(on this Mac only -- nothing is uploaded)",

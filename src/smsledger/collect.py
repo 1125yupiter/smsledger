@@ -93,14 +93,21 @@ def digest(kind: str, ts: str, sender: str, body: str) -> str:
 
 
 def deny(what: str) -> None:
-    """Could not read it for lack of permission. Say so loudly.
+    """Could not read it for lack of permission. Say so loudly, and in their language.
 
     Returning an empty list quietly is the failure mode that costs days: the
     cursor stops and nothing looks wrong. Both the mail and the message side have
     stalled this way in practice, which is why this shouts.
+
+    It shouted in English until now. Full Disk Access is the one wall a beginner
+    actually hits, so of every line in this tool these two are the likeliest to be
+    read by someone who is stuck -- which makes them the worst two to leave
+    untranslated.
     """
-    print(f"!! No permission to read {what}. Collection has stopped.")
-    print("   Grant Full Disk Access: System Settings > Privacy & Security.")
+    from .i18n import t as _
+
+    print("!! " + _("collect.denied", what=what))
+    print("   " + _("collect.denied.how"))
 
 
 @contextmanager
