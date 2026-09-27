@@ -18,6 +18,7 @@ import sys
 import time
 from pathlib import Path
 
+from .i18n import t as _
 from .paths import HOME
 
 LABEL = "com.smsledger.refresh"
@@ -60,10 +61,10 @@ def install(hours: int = 6, days: int = 180, redact: bool = False) -> int:
     if r.returncode != 0:
         print(f"could not load the agent: {r.stderr.strip()}", file=sys.stderr)
         return 1
-    print(f"Installed. Runs every {hours}h, and once now.")
-    print(f"  report: {HOME / 'report.html'}")
-    print(f"  log:    {LOG}")
-    print("  remove: smsledger-agent remove")
+    print(_("agent.installed", hours=hours))
+    print("  " + _("agent.report", path=HOME / "report.html"))
+    print("  " + _("agent.log", path=LOG))
+    print("  " + _("agent.remove.hint"))
     return 0 if _verify_first_run() else 2
 
 
@@ -80,7 +81,7 @@ def _verify_first_run(timeout: int = 40) -> bool:
     possible failure for someone who will not go looking in a log file.
     """
     before = LOG.stat().st_size if LOG.exists() else 0
-    print("\n  Checking the first run can actually read your messages...")
+    print("\n  " + _("agent.verify"))
     deadline = time.time() + timeout
     while time.time() < deadline:
         time.sleep(2)
@@ -88,19 +89,19 @@ def _verify_first_run(timeout: int = 40) -> bool:
             continue
         text = LOG.read_text(encoding="utf-8", errors="ignore")[before:]
         if DENIED in text:
-            print("  It ran, but macOS blocked it from reading your messages.")
+            print("  " + _("agent.verify.blocked"))
             print()
-            print("  Background tasks need permission separately from the app you")
-            print("  just used. To fix it:")
-            print("    System Settings > Privacy & Security > Full Disk Access")
-            print("    press +, then Cmd+Shift+G and paste this exact path:")
+            print("  " + _("agent.verify.blocked.why"))
+            print("  " + _("agent.verify.blocked.why2"))
+            print("    " + _("agent.verify.blocked.how1"))
+            print("    " + _("agent.verify.blocked.how2"))
             print(f"      {sys.executable}")
-            print("    turn it on, then run: smsledger-agent install")
+            print("    " + _("agent.verify.blocked.how3"))
             return False
         if "collected" in text or "FAILED" in text:
-            print("  Confirmed -- it can read them.")
+            print("  " + _("agent.verify.ok"))
             return True
-    print("  Could not confirm within {}s. Check later with:".format(timeout))
+    print("  " + _("agent.verify.timeout", seconds=timeout))
     print("    smsledger-agent status")
     return True
 
@@ -116,29 +117,30 @@ def remove() -> int:
     _launchctl("unload", str(PLIST))
     if PLIST.exists():
         PLIST.unlink()
-    print("Removed. Nothing runs on a schedule any more.")
+    print(_("agent.removed"))
     return 0
 
 
 def status() -> int:
     if not PLIST.exists():
-        print("Not installed. `smsledger-agent install` to schedule it.")
+        print(_("agent.notinstalled"))
         return 1
     r = _launchctl("list", LABEL)
     print(f"plist:  {PLIST}")
-    print(f"loaded: {'yes' if r.returncode == 0 else 'no'}")
+    print(_("agent.loaded", state=_("yes") if r.returncode == 0 else _("no")))
     if not LOG.exists():
-        print("log:    (nothing yet -- it may not have run)")
+        print(_("agent.nolog"))
         return 0
     text = LOG.read_text(encoding="utf-8", errors="ignore")
-    print(f"log:    {LOG}")
+    print(_("agent.log", path=LOG))
     for line in text.strip().splitlines()[-5:]:
         print(f"  {line}")
     if DENIED in text.splitlines()[-40:] and DENIED in text:
         print()
-        print("  macOS is blocking the background task from reading your messages.")
-        print("  System Settings > Privacy & Security > Full Disk Access, press +,")
-        print(f"  Cmd+Shift+G and paste:  {sys.executable}")
+        print("  " + _("agent.blocked.short"))
+        print("  " + _("agent.verify.blocked.how1"))
+        print("  " + _("agent.verify.blocked.how2"))
+        print(f"    {sys.executable}")
     return 0
 
 

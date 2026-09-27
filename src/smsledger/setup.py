@@ -18,19 +18,21 @@ import subprocess
 import sys
 from pathlib import Path
 
+from .i18n import t as _
 from .paths import EXAMPLES
 
 DEFAULT_HOME = Path.home() / "smsledger"
 
 
 def ask(question: str, default: str = "y") -> bool:
-    hint = "Y/n" if default == "y" else "y/N"
+    yes, no = _("yes"), _("no")
+    hint = f"{yes.upper()}/{no}" if default == "y" else f"{yes}/{no.upper()}"
     try:
         got = input(f"  {question} [{hint}] ").strip().lower()
     except (EOFError, KeyboardInterrupt):
         print()
         return False
-    return (got or default) in ("y", "yes")
+    return (got or _("yes")) in (_("yes"), "y", "yes")
 
 
 def step(n: int, title: str) -> None:
@@ -43,31 +45,30 @@ def check_access() -> bool:
 
     tmp = Path("/tmp/smsledger-setup.db")
     if not CHAT_DB.exists():
-        print("  Could not find the Messages database.")
-        print("  This tool reads messages already on this Mac, so there is nothing to read.")
+        print("  " + _("access.missing"))
+        print("  " + _("access.missing.why"))
         return False
     if copy_sqlite(CHAT_DB, tmp) is None:
-        print("  macOS is blocking access to your messages.")
+        print("  " + _("access.blocked"))
         print()
-        print("  Open System Settings > Privacy & Security > Full Disk Access,")
-        print("  add Terminal (or whichever app you are running this in), then")
-        print("  quit that app completely and run this again.")
+        for k in ("access.blocked.how1", "access.blocked.how2", "access.blocked.how3"):
+            print("  " + _(k))
         print()
-        print("  Nothing leaves your Mac either way -- this permission is what lets")
-        print("  the tool read the notices your bank already sent you.")
+        print("  " + _("access.blocked.why"))
+        print("  " + _("access.blocked.why2"))
         return False
     tmp.unlink(missing_ok=True)
-    print("  Messages are readable.")
+    print("  " + _("access.ok"))
     return True
 
 
 def pick_home() -> Path:
     env = os.environ.get("SMSLEDGER_HOME")
     if env:
-        print(f"  Using SMSLEDGER_HOME={env}")
+        print("  " + _("home.env", path=env))
         return Path(env).expanduser()
-    print(f"  Your data will be kept in {DEFAULT_HOME}")
-    print("  (on this Mac only -- nothing is uploaded)")
+    print("  " + _("home.default", path=DEFAULT_HOME))
+    print("  " + _("home.local"))
     return DEFAULT_HOME
 
 
@@ -79,13 +80,13 @@ def write_config(home: Path) -> int:
     for src in sorted(EXAMPLES.glob("*.example.json")):
         dest = cfg / src.name.replace(".example", "")
         if dest.exists():
-            print(f"  Keeping your existing {dest.name}")
+            print("  " + _("config.kept", name=dest.name))
             continue
         shutil.copyfile(src, dest)
         written += 1
     known = json.loads((cfg / "sources.json").read_text(encoding="utf-8"))
     n = len(known.get("sms") or []) + len(known.get("mail") or [])
-    print(f"  Wrote config for {n} known senders.")
+    print("  " + _("config.wrote", count=n))
     return written
 
 
@@ -99,23 +100,22 @@ def report_unknown(home: Path) -> None:
     known = sum((scan.get("known") or {}).values())
     unknown = {k: v for k, v in (scan.get("unknown") or {}).items()
                if v["money"] >= doctor.MIN_HITS}
-    print(f"  Recognised {known} messages in the last 90 days.")
+    print("  " + _("arrivals.recognised", count=known))
     if unknown:
         total = sum(v["money"] for v in unknown.values())
         print()
-        print(f"  {total} message(s) look like transactions but are not understood yet:")
+        print("  " + _("arrivals.unknown", count=total))
         for sender in unknown:
             print(f"    {sender}")
         print()
-        print("  That means a bank of yours is not supported yet. Everything else")
-        print("  still works; those messages are simply skipped. Reporting the")
-        print("  sender above is what gets it added.")
+        for k in ("arrivals.unknown.why1", "arrivals.unknown.why2", "arrivals.unknown.why3"):
+            print("  " + _(k))
     elif not known:
         print()
-        print("  Nothing recognised. Two usual reasons:")
-        print("    - your phone's messages are not forwarded to this Mac")
-        print("      (on the phone: Settings > Messages > Text Message Forwarding)")
-        print("    - your bank is not supported yet")
+        print("  " + _("arrivals.none"))
+        print("    " + _("arrivals.none.a"))
+        print("    " + _("arrivals.none.a2"))
+        print("    " + _("arrivals.none.b"))
 
 
 def open_file(path: Path) -> None:
@@ -126,29 +126,29 @@ def open_file(path: Path) -> None:
 
 
 def main() -> None:
-    print("smsledger setup")
-    print("Reads the bank notices already on this Mac. No login, nothing uploaded.")
+    print(_("setup.title"))
+    print(_("setup.tagline"))
 
-    step(1, "Checking access")
+    step(1, _("setup.step.access"))
     if not check_access():
         raise SystemExit(1)
 
-    step(2, "Choosing where your data lives")
+    step(2, _("setup.step.home"))
     home = pick_home()
     os.environ["SMSLEDGER_HOME"] = str(home)
     home.mkdir(parents=True, exist_ok=True)
 
-    step(3, "Writing configuration")
+    step(3, _("setup.step.config"))
     write_config(home)
 
-    step(4, "Looking at what arrives")
+    step(4, _("setup.step.arrivals"))
     report_unknown(home)
 
-    step(5, "Reading your messages")
-    print("  The first run goes through everything, so give it a minute.")
+    step(5, _("setup.step.read"))
+    print("  " + _("read.first"))
     print()
-    if not ask("Start now?"):
-        print("\nStopped. Run `smsledger-setup` again when you are ready.")
+    if not ask(_("read.ask")):
+        print("\n" + _("read.stopped"))
         raise SystemExit(0)
 
     # Import after SMSLEDGER_HOME is set: paths are resolved at import time.
@@ -156,37 +156,35 @@ def main() -> None:
         del sys.modules[mod]
     from smsledger.refresh import run as refresh
 
-    print("  working...")
+    print("  " + _("read.working"))
     result = refresh(days=180, quiet=True)
     if not result.get("ok"):
-        print("\n  Something went wrong above. Nothing was damaged -- run it again,")
-        print("  or `smsledger-doctor` to see what it found.")
+        print("\n  " + _("read.failed"))
+        print("  " + _("read.failed2"))
         raise SystemExit(1)
-    print(f"  Read {result['collected']:,} notices and found "
-          f"{result['parsed']:,} transactions.")
+    print("  " + _("read.done", collected=result["collected"], parsed=result["parsed"]))
 
     out = result["report"]
-    step(6, "Your report")
+    step(6, _("setup.step.report"))
     print(f"  {out}")
-    print("  Bookmark it. It is a plain file -- it works offline and always will.")
+    print("  " + _("report.bookmark"))
     print()
-    if ask("Open it now?"):
+    if ask(_("report.ask.open")):
         open_file(out)
 
-    step(7, "Keeping it up to date")
-    print("  A background task can refresh this a few times a day, so the report")
-    print("  is current whenever you open it. It uses no network and can be removed")
-    print("  at any time with `smsledger-agent remove`.")
+    step(7, _("setup.step.schedule"))
+    for k in ("schedule.what1", "schedule.what2", "schedule.what3"):
+        print("  " + _(k))
     print()
-    if ask("Set that up?"):
+    if ask(_("schedule.ask")):
         from smsledger.agent import install
 
         if install(hours=6, days=180) == 2:
-            print("\n  Until that is done, run `smsledger-refresh` yourself to update.")
+            print("\n  " + _("schedule.blocked.later"))
     else:
-        print("  Skipped. Run `smsledger-refresh` yourself whenever you want an update.")
+        print("  " + _("schedule.skipped"))
 
-    print("\nDone. From here on, opening the report is the whole workflow.")
+    print("\n" + _("setup.done"))
 
 
 if __name__ == "__main__":

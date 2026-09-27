@@ -24,6 +24,18 @@ config file or run anything again.
 
 It works with the Python that ships with macOS — there is nothing else to install.
 
+### Language
+
+It follows your Mac's language automatically — Korean and English ship today.
+To pin it:
+
+```bash
+SMSLEDGER_LANG=en smsledger-setup      # or set "language" in config/profile.json
+```
+
+Code and documentation are English so anyone can contribute; **what you read on
+screen is not**. Adding a language is one JSON file — see CONTRIBUTING.md.
+
 ### What it needs
 
 - **macOS.** The notices are read from `~/Library/Messages/chat.db` and Apple Mail.

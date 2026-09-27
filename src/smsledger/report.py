@@ -16,6 +16,8 @@ import html
 from datetime import date, timedelta
 from pathlib import Path
 
+from .i18n import language
+from .i18n import t as _
 from .paths import HOME
 from .summary import (
     PERSONAL, bank_flow, card_flow, label, last_balances, load,
@@ -150,7 +152,7 @@ def tile(k: str, v: str, u: str = "") -> str:
 def grouped_bars(series: list[tuple[str, int, int]]) -> str:
     """Monthly outflow vs inflow. Two series, so a legend plus direct labels."""
     if not series:
-        return '<p class="note">Not enough months to plot.</p>'
+        return f'<p class="note">{esc(_("report.months.short"))}</p>'
     W, H, PAD_L, PAD_B, PAD_T = 900, 260, 8, 28, 16
     # Pick the interval first, then the ceiling, so every gridline is a round number.
     steps = 3
@@ -179,13 +181,13 @@ def grouped_bars(series: list[tuple[str, int, int]]) -> str:
             )
         parts.append(f'<text class="tick" x="{cx:.1f}" y="{H - 10}" text-anchor="middle">{esc(month)}</text>')
     parts.append(f'<line class="ax" x1="{PAD_L}" y1="{PAD_T + plot_h}" x2="{W}" y2="{PAD_T + plot_h}"/>')
-    return f'<svg viewBox="0 0 {W} {H}" role="img" aria-label="Monthly outflow and inflow">{"".join(parts)}</svg>'
+    return f'<svg viewBox="0 0 {W} {H}" role="img" aria-label="{esc(_("report.monthly.h"))}">{"".join(parts)}</svg>'
 
 
 def hbars(rows: list[tuple[str, int, int]]) -> str:
     """Top counterparties. One series, so one color for every bar."""
     if not rows:
-        return '<p class="note">No outbound rows in this window.</p>'
+        return f'<p class="note">{esc(_("report.where.empty"))}</p>'
     W, ROW, GAP = 900, 26, 6
     lbl_w, val_w = 250, 120
     peak = max(v for _, v, _ in rows) or 1
@@ -204,7 +206,7 @@ def hbars(rows: list[tuple[str, int, int]]) -> str:
             f'<text class="rowval" x="{W}" y="{y + ROW * 0.68:.0f}" text-anchor="end">{won(total)}</text>'
             f'</g>'
         )
-    return f'<svg viewBox="0 0 {W} {H}" role="img" aria-label="Largest outbound counterparties">{"".join(parts)}</svg>'
+    return f'<svg viewBox="0 0 {W} {H}" role="img" aria-label="{esc(_("report.where.h"))}">{"".join(parts)}</svg>'
 
 
 def build(rows: list[dict], since: str, until: str, redact: bool) -> str:
@@ -215,10 +217,10 @@ def build(rows: list[dict], since: str, until: str, redact: bool) -> str:
     total_out = approve - cancel + out
 
     tiles = "".join([
-        tile("Out", won(total_out), f"{len(period)} transactions"),
-        tile("In", won(inn), "account deposits"),
-        tile("Net", won(inn - total_out), "in minus out"),
-        tile("Card", won(approve - cancel), "approvals less cancellations"),
+        tile(_("report.tile.out"), won(total_out), _("report.tile.out.u", count=len(period))),
+        tile(_("report.tile.in"), won(inn), _("report.tile.in.u")),
+        tile(_("report.tile.net"), won(inn - total_out), _("report.tile.net.u")),
+        tile(_("report.tile.card"), won(approve - cancel), _("report.tile.card.u")),
     ])
 
     # Monthly series: outflow and inflow side by side
@@ -241,68 +243,70 @@ def build(rows: list[dict], since: str, until: str, redact: bool) -> str:
             age = (today - date.fromisoformat(stamp[:10])).days
         except ValueError:
             age = 0
-        flag = f'<span class="stale">stale · {age // 30} months old</span>' if age > STALE_DAYS else ""
+        flag = (f'<span class="stale">{esc(_("report.bal.stale", months=age // 30))}</span>'
+                if age > STALE_DAYS else "")
         brows.append(f"<tr><td>…{esc(tail)}</td><td class='n'>{won(bal)}</td>"
                      f"<td>{esc(stamp[:16])} {flag}</td></tr>")
 
+    empty_bal = f'<tr><td colspan=3>{esc(_("report.bal.empty"))}</td></tr>'
     table = "".join(
         f"<tr><td>{esc(n)}</td><td class='n'>{won(v)}</td><td class='n'>{c}</td></tr>"
         for n, v, c in shown
     )
 
     return f"""<!doctype html>
-<html lang="en"><head><meta charset="utf-8">
+<html lang="{esc(language())}"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>smsledger · {esc(since)} to {esc(until)}</title>
+<title>smsledger · {esc(since)} – {esc(until)}</title>
 <style>{CSS}</style></head>
 <body data-palette="#2a78d6,#eb6834">
-<button class="toggle" id="tg">light / dark</button>
+<button class="toggle" id="tg">{esc(_("report.theme"))}</button>
 <div class="viz-root">
-  <h1>What already happened</h1>
-  <p class="sub">{esc(since)} to {esc(until)} · {len(period)} transactions read from
-     {len(rows)} parsed notices · no account was logged into to produce this</p>
+  <h1>{esc(_("report.h1"))}</h1>
+  <p class="sub">{esc(_("report.sub", since=since, until=until,
+                        shown=format(len(period), ","), total=format(len(rows), ",")))}</p>
 
   <div class="tiles">{tiles}</div>
 
   <div class="card">
-    <h2>Month by month</h2>
-    <p class="note">Outflow counts card approvals less cancellations, plus account withdrawals.</p>
+    <h2>{esc(_("report.monthly.h"))}</h2>
+    <p class="note">{esc(_("report.monthly.note"))}</p>
     <div class="legend">
-      <span><i class="dot" style="background:var(--series-1)"></i>out</span>
-      <span><i class="dot" style="background:var(--series-2)"></i>in</span>
+      <span><i class="dot" style="background:var(--series-1)"></i>{esc(_("report.legend.out"))}</span>
+      <span><i class="dot" style="background:var(--series-2)"></i>{esc(_("report.legend.in"))}</span>
     </div>
     {grouped_bars(series)}
   </div>
 
   <div class="card">
-    <h2>Where it went</h2>
-    <p class="note">Largest outbound counterparties in this window.{
-      " Names are replaced with positions." if redact else ""}</p>
+    <h2>{esc(_("report.where.h"))}</h2>
+    <p class="note">{esc(_("report.where.note"))}{
+      " " + esc(_("report.where.redacted")) if redact else ""}</p>
     {hbars(shown)}
-    <details><summary>Table view</summary>
-      <table><thead><tr><th>Counterparty</th><th class="n">Total</th><th class="n">Count</th></tr></thead>
+    <details><summary>{esc(_("report.table.view"))}</summary>
+      <table><thead><tr><th>{esc(_("report.table.counterparty"))}</th>
+      <th class="n">{esc(_("report.table.total"))}</th>
+      <th class="n">{esc(_("report.table.count"))}</th></tr></thead>
       <tbody>{table}</tbody></table>
     </details>
   </div>
 
   <div class="card">
-    <h2>Last reported balance</h2>
-    <p class="note">What each account itself stated, as of that message. Not a current balance.</p>
-    <table><thead><tr><th>Account</th><th class="n">Balance</th><th>As of</th></tr></thead>
-    <tbody>{"".join(brows) or "<tr><td colspan=3>No balances reported.</td></tr>"}</tbody></table>
+    <h2>{esc(_("report.bal.h"))}</h2>
+    <p class="note">{esc(_("report.bal.note"))}</p>
+    <table><thead><tr><th>{esc(_("report.bal.account"))}</th>
+    <th class="n">{esc(_("report.bal.balance"))}</th>
+    <th>{esc(_("report.bal.asof"))}</th></tr></thead>
+    <tbody>{"".join(brows) or empty_bal}</tbody></table>
   </div>
 
   <div class="caveat">
-    <h2>What this page cannot tell you</h2>
+    <h2>{esc(_("report.caveat.h"))}</h2>
     <ul>
-      <li><strong>Transfers between your own accounts are counted as outflow.</strong>
-          Nothing here knows which counterparties are you, so moving money looks like
-          spending. This is the largest distortion above.</li>
-      <li><strong>Not what is left now.</strong> Balances are as of their last message;
-          anything spent since is missing.</li>
-      <li><strong>Not what is coming.</strong> Card charges approved but not yet billed
-          are not projected.</li>
-      <li><strong>Nothing is categorised.</strong> No budgets, no rules, no rollups.</li>
+      <li><strong>{esc(_("report.caveat.transfers.b"))}</strong> {esc(_("report.caveat.transfers"))}</li>
+      <li><strong>{esc(_("report.caveat.left.b"))}</strong> {esc(_("report.caveat.left"))}</li>
+      <li><strong>{esc(_("report.caveat.coming.b"))}</strong> {esc(_("report.caveat.coming"))}</li>
+      <li><strong>{esc(_("report.caveat.cat.b"))}</strong> {esc(_("report.caveat.cat"))}</li>
     </ul>
   </div>
 </div>

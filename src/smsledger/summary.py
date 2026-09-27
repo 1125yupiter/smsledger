@@ -19,6 +19,7 @@ from collections import Counter, defaultdict
 from datetime import date, timedelta
 from pathlib import Path
 
+from .i18n import t as _
 from .paths import STREAM
 
 PARSED = STREAM / "parsed.jsonl"
@@ -63,7 +64,7 @@ def label(name: str, index: int, redact: bool) -> str:
     handed to someone without editing it by hand, which is the point at which people
     leak things.
     """
-    return f"payee {index}" if redact else mask_digits(name)
+    return _("report.payee", n=index) if redact else mask_digits(name)
 
 
 def card_flow(rows: list[dict]) -> tuple[int, int]:

@@ -129,6 +129,32 @@ pytest
 
 `test_every_registered_kind_has_a_fixture` blocks a parser that ships without one.
 
+## Adding a language
+
+Same size of contribution as a parser: **one JSON file**.
+
+1. Copy `src/smsledger/messages/en.json` to `<code>.json` (ISO 639-1: `ja`, `es`, `pt`…).
+2. Translate the values. Leave the keys alone. `{placeholders}` must survive.
+3. `pytest` — one test asserts a shipped language covers every key in `en.json`.
+
+Missing keys fall back to English rather than failing, so a partial file is already
+useful; a shipped one should be complete.
+
+Two things worth knowing:
+
+- **Write for someone who is not technical.** These strings are read by people who
+  will not open a config file. "Full Disk Access" is a thing they must find in System
+  Settings, so name it exactly as their OS does — translate the sentence, not the menu
+  item, unless the OS itself translates it.
+- **Language and country are separate.** A Korean-bank user may read English, and the
+  locale packages under `locales/` are about *where the money is*, not what language
+  the reader wants. Do not put UI text in a locale package.
+
+Detection order: `SMSLEDGER_LANG` → `language` in `config/profile.json` → the OS
+→ English. On macOS the OS is read via `defaults read -g AppleLocale`, because
+`LANG` is routinely unset in Terminal and always unset under launchd — relying on
+`LANG` alone gives a Korean Mac an English interface.
+
 ## Not accepted
 
 - Code that fetches data by logging in, scraping, or calling an open-banking API. Not doing

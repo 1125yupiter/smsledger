@@ -89,10 +89,39 @@ def test_mask_digits_never_prints_a_full_account_number() -> None:
 
 
 def test_redact_replaces_payee_names_with_positions() -> None:
+    """The name must be gone whatever language the label is rendered in."""
+    from smsledger.i18n import set_language
     from smsledger.summary import label
 
-    assert label("SOME LANDLORD", 3, redact=True) == "payee 3"
-    assert label("SOME LANDLORD", 3, redact=False) == "SOME LANDLORD"
+    for lang in ("en", "ko"):
+        set_language(lang)
+        hidden = label("SOME LANDLORD", 3, redact=True)
+        assert "LANDLORD" not in hidden
+        assert "3" in hidden
+        assert label("SOME LANDLORD", 3, redact=False) == "SOME LANDLORD"
+    set_language(None)
+
+
+def test_every_language_covers_the_reference_catalogue() -> None:
+    """A partial translation falls back, but a shipped one should be complete."""
+    import json
+
+    from smsledger.i18n import MESSAGES, available
+
+    ref = json.loads((MESSAGES / "en.json").read_text(encoding="utf-8"))
+    for lang in available():
+        if lang == "en":
+            continue
+        got = json.loads((MESSAGES / f"{lang}.json").read_text(encoding="utf-8"))
+        missing = set(ref) - set(got)
+        assert not missing, f"{lang} is missing: {sorted(missing)}"
+
+
+def test_missing_key_never_crashes() -> None:
+    from smsledger.i18n import t
+
+    assert t("no.such.key") == "no.such.key"
+    assert t("no.such.key", count=3) == "no.such.key"
 
 
 def test_nice_ceiling_rounds_axis_max_to_a_readable_number() -> None:
