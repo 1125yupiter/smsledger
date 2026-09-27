@@ -1,0 +1,213 @@
+# What a green tick here does and does not mean.
+#
+# GUARANTEED
+#   - The test suite passes on the Python that ships with macOS and on the newest one.
+#     Both, always: this tool's floor is Apple's python3, because that is the only
+#     interpreter a non-technical Mac user has, and its ceiling is whatever they will
+#     have next year.
+#   - A clean install works. Not an install into the checkout -- a wheel installed into
+#     an empty virtualenv and then run from a directory that is not the repository.
+#     Two release-blocking defects were found that way and only that way (package data
+#     that existed only in a checkout, console scripts that were not on PATH), so it is
+#     a job here rather than a thing to remember.
+#   - What is on screen is the reader's language, all the way down, in a real run and
+#     not only in the string catalogues.
+#   - A command that stops because it cannot work prints its sentence and exits 1.
+#     It used to print a traceback on top of that sentence, at the one entry point a
+#     beginner touches.
+#
+# NOT GUARANTEED -- "CI is green" and "it works on a Mac" are different sentences
+#   - A runner has no Messages database and no Apple Mail, and Full Disk Access is a
+#     thing a person grants in System Settings. So every path that reads real notices --
+#     collect, the whole of doctor past its access check, refresh -- is unreachable here.
+#     What CI checks is that those paths stop loudly. Whether they read correctly is
+#     answered on a Mac with data, by `vaultkit.scan` against the real ledger.
+#   - The parsers are exercised against fabricated fixtures only. Every value in
+#     tests/fixtures is invented. Fidelity to what banks actually send is a separate
+#     claim, measured off-CI against real notices.
+#   - The runner's OS language is not Korean and cannot be made Korean. The language
+#     tests pin the interface explicitly; automatic detection via
+#     `defaults read -g AppleLocale` is therefore only observed here, not asserted.
+#     The step that prints it exists so the next person can see what the runner answers.
+#   - The scratch copy still goes to a fixed /tmp path. A runner is a fresh machine
+#     each job, so collisions cannot surface here. That gap is real and lives on a Mac.
+#
+# No `schedule:` trigger, on purpose. A nightly run mails its failure at night, and
+# nobody is awake to act on it. Failures arrive while the change is being made.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: tests · python ${{ matrix.python }}
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # The floor and the ceiling. Dropping either one is how a tool quietly stops
+        # working on the Python its readers actually have.
+        python: ["3.9", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: python -VV
+      - name: What does this runner say its locale is
+        # Observation, not a check. macOS leaves LANG unset, so the tool asks the OS
+        # directly; a runner may answer anything or nothing, and the tool must fall
+        # back to English rather than fail either way.
+        run: defaults read -g AppleLocale || echo "(no AppleLocale on this runner)"
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install -e ".[dev]"
+      - name: Test suite
+        run: python -m pytest tests/ -q
+      - name: The interface is the reader's language, in a real run
+        # These two drive summary and doctor with invented rows and read the output
+        # back. A string catalogue can be complete while the code still prints an
+        # English sentence it never routed through it.
+        run: python -m pytest tests/ -q -k "speaks_"
+
+  macos-python:
+    # The interpreter a reader actually has. README promises "it works with the Python
+    # that ships with macOS, so there is nothing else to install" -- this is the job
+    # that keeps that sentence true. setup-python is deliberately absent.
+    name: the Mac's own python3
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Which python ships with this runner
+        run: /usr/bin/python3 -VV
+      - name: It is not older than the floor pyproject declares
+        run: |
+          /usr/bin/python3 - <<'PY'
+          import sys
+          assert sys.version_info >= (3, 9), sys.version
+          print("ok:", sys.version.split()[0])
+          PY
+      - name: Import every module, with nothing installed
+        # Apple's python3 has no pytest and no pip packages, which is exactly the state
+        # a reader's Mac is in. An import-time syntax error from a newer Python's
+        # grammar shows up here and nowhere else.
+        run: |
+          PYTHONPATH=src /usr/bin/python3 - <<'PY'
+          import importlib, pkgutil
+          import smsledger
+          names = [m.name for m in pkgutil.walk_packages(smsledger.__path__, "smsledger.")]
+          for name in names:
+              importlib.import_module(name)
+          print("imported", len(names), "modules")
+          PY
+      - name: Test suite on it too, via a virtualenv it made itself
+        run: |
+          /usr/bin/python3 -m venv "$RUNNER_TEMP/floor"
+          "$RUNNER_TEMP/floor/bin/python" -m pip install --quiet --upgrade pip
+          "$RUNNER_TEMP/floor/bin/python" -m pip install --quiet -e ".[dev]"
+          "$RUNNER_TEMP/floor/bin/python" -m pytest tests/ -q
+
+  clean-install:
+    # The thing that is only true in a checkout. Everything below runs from a directory
+    # that is not the repository, against a wheel in an empty virtualenv.
+    name: clean install
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install a built wheel into an empty virtualenv
+        run: |
+          python -m venv "$RUNNER_TEMP/fresh"
+          "$RUNNER_TEMP/fresh/bin/python" -m pip install --quiet --upgrade pip
+          "$RUNNER_TEMP/fresh/bin/python" -m pip install --quiet "$GITHUB_WORKSPACE"
+      - name: The shipped configuration and messages survived the install
+        # They used to sit beside the source tree. Every test ran inside a checkout, so
+        # the empty configuration a real install produced was invisible until someone
+        # installed it for real.
+        run: |
+          mkdir -p "$RUNNER_TEMP/elsewhere"
+          cd "$RUNNER_TEMP/elsewhere"
+          "$RUNNER_TEMP/fresh/bin/python" - <<'PY'
+          from smsledger.i18n import available
+          from smsledger.paths import EXAMPLES, PKG
+          assert PKG in EXAMPLES.parents, EXAMPLES
+          shipped = sorted(p.name for p in EXAMPLES.glob("*.example.json"))
+          assert {"sources.example.json", "profile.example.json"} <= set(shipped), shipped
+          assert {"en", "ko"} <= set(available()), available()
+          print("examples:", shipped, "languages:", available())
+          PY
+      - name: Every console script landed
+        # Whether the directory they landed in is on PATH is a property of the reader's
+        # machine, not of this repository -- which is why every instruction the tool
+        # prints says `python3 -m smsledger` instead. A venv puts them on PATH, so this
+        # checks they exist, not that a reader could type them.
+        run: |
+          cd "$RUNNER_TEMP"
+          for name in doctor collect parse summary report refresh agent setup support; do
+            test -x "fresh/bin/smsledger-$name" || { echo "missing: smsledger-$name"; exit 1; }
+          done
+          echo "9 scripts present"
+      - name: It lists its commands from outside the repository
+        run: |
+          cd "$RUNNER_TEMP/elsewhere"
+          "$RUNNER_TEMP/fresh/bin/python" -m smsledger | tee out.txt
+          grep -q "python3 -m smsledger setup" out.txt
+      - name: A command that cannot work says so, in either language, and exits 1
+        # No Messages database on a runner, which is the same situation as a Mac that
+        # has not granted Full Disk Access. The tool must stop with a sentence rather
+        # than read nothing quietly or print a traceback over its own explanation.
+        run: |
+          cd "$RUNNER_TEMP/elsewhere"
+          export HOME="$RUNNER_TEMP/scratch-home"
+          mkdir -p "$HOME"
+          for lang in en ko; do
+            for cmd in doctor summary; do
+              set +e
+              SMSLEDGER_LANG=$lang SMSLEDGER_HOME="$HOME/.smsledger" \
+                "$RUNNER_TEMP/fresh/bin/python" -m smsledger $cmd > "$cmd.$lang.txt" 2>&1
+              code=$?
+              set -e
+              test $code -eq 1 || { echo "$cmd/$lang exited $code, expected 1"; cat "$cmd.$lang.txt"; exit 1; }
+              if grep -q "Traceback" "$cmd.$lang.txt"; then
+                echo "$cmd/$lang printed a traceback"; cat "$cmd.$lang.txt"; exit 1
+              fi
+              test -s "$cmd.$lang.txt" || { echo "$cmd/$lang said nothing"; exit 1; }
+              echo "--- $cmd ($lang)"; cat "$cmd.$lang.txt"
+            done
+          done
+      - name: The Korean run is actually Korean
+        run: |
+          cd "$RUNNER_TEMP/elsewhere"
+          grep -q "메시지 데이터베이스가 없어요" doctor.ko.txt
+          grep -q "No Messages database" doctor.en.txt
+
+  documented-install:
+    # The line README tells a reader to paste, at this exact commit. Only meaningful on
+    # push, because a pull request's head may not be fetchable from this repository.
+    name: the install line in the README
+    if: github.event_name == 'push'
+    runs-on: macos-latest
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: pip install "git+https://github.com/<repo>@<sha>"
+        run: |
+          cd "$RUNNER_TEMP"
+          python -m venv readme
+          readme/bin/python -m pip install --quiet --upgrade pip
+          readme/bin/python -m pip install --quiet \
+            "git+https://github.com/${{ github.repository }}@${{ github.sha }}"
+          readme/bin/python -m smsledger | grep -q "python3 -m smsledger setup"
